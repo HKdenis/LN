@@ -580,6 +580,9 @@ elif selection == "New Transaction Entry":
         # 4. Form for submission data
         with st.form("add_edit_form", clear_on_submit=True):
             input_price = st.number_input("Price (Ugx)", min_value=0, step=500, value=0)
+            # NEW: Added Item Cost input field
+            input_cost = st.number_input("Item Cost (Ugx)", min_value=0, step=500, value=0, help="Internal acquisition/production cost.")
+            
             submit_item = st.form_submit_button("Save Item to Sheet")
 
             if submit_item:
@@ -592,17 +595,21 @@ elif selection == "New Transaction Entry":
                             if r_idx == 0:
                                 continue
                             if row_values and row_values[0].strip().lower() == input_particular.lower():
+                                # Updates Column 2 (Price)
                                 lookup_worksheet.update_cell(r_idx + 1, 2, input_price)
+                                # NEW: Updates Column 3 (Item Cost) for existing rows
+                                lookup_worksheet.update_cell(r_idx + 1, 3, input_cost)
                                 item_found = True
                                 break
 
                         if not item_found:
-                            lookup_worksheet.append_row([input_particular, input_price])
+                            # NEW: Appends row with three elements [Particular, Price, Item Cost]
+                            lookup_worksheet.append_row([input_particular, input_price, input_cost])
 
                         if input_price == 0:
                             st.toast(f"⚠️ Saved '{input_particular}' with a 0 Ugx price.")
                         else:
-                            st.toast(f"✅ Saved '{input_particular}' with Price {input_price:,} Ugx!")
+                            st.toast(f"✅ Saved '{input_particular}' successfully!")
 
                         st.rerun()
                     except Exception as ex:
@@ -884,10 +891,54 @@ elif selection == "View Particular List":
         financial_sheet = sheet.worksheet("Particulars&Prices")
         data = financial_sheet.get_all_records()
         df = pd.DataFrame(data)
-    
-    # FIXED: Ensured the DataFrame variable names match
+    # 2. Render Data
     if not df.empty:
-        st.dataframe(df, use_container_width=True)
+        # 1. Clean up column whitespace from Google Sheets
+        df.columns = df.columns.str.strip()
+
+        # 2. Match exact column names dynamically
+        price_col = "Price" if "Price" in df.columns else ("Price (Ugx)" if "Price (Ugx)" in df.columns else None)
+        cost_col = "Item Cost" if "Item Cost" in df.columns else ("Item Cost (Ugx)" if "Item Cost (Ugx)" in df.columns else None)
+
+        # 3. Create a clean display copy of the DataFrame
+        df_display = df.copy()
+
+        # 4. Safely calculate Profit if both columns are found
+        if price_col and cost_col:
+            num_price = pd.to_numeric(df_display[price_col], errors='coerce').fillna(0)
+            num_cost = pd.to_numeric(df_display[cost_col], errors='coerce').fillna(0)
+            df_display["Net Profit"] = num_price - num_cost
+        else:
+            df_display["Net Profit"] = 0
+
+        # 5. Build dynamic formatting configuration specifically for numeric types
+        format_config = {}
+        numeric_cols = []
+
+        if price_col:
+            format_config[price_col] = "UGX {:,}"
+            numeric_cols.append(price_col)
+        if cost_col:
+            format_config[cost_col] = "UGX {:,}"
+            numeric_cols.append(cost_col)
+        if "Net Profit" in df_display.columns:
+            format_config["Net Profit"] = "UGX {:,}"
+            numeric_cols.append("Net Profit")
+
+        # 6. Apply styling strictly targeted at the numeric subsets
+        styled_df = (
+            df_display.style
+            .format(format_config, na_rep="-") 
+            .set_properties(**{
+                'text-align': 'right'  # Standard corporate look: numbers right-aligned
+            }, subset=numeric_cols)
+        )
+
+        # Only apply the green background gradient to the Net Profit column if it exists
+        if "Net Profit" in df_display.columns:
+            styled_df = styled_df.background_gradient(subset=["Net Profit"], cmap="YlGn")
+
+        # 7. Render table safely
+        st.dataframe(styled_df, use_container_width=True, hide_index=True)
     else:
         st.warning("No data found in the spreadsheet.")
-
