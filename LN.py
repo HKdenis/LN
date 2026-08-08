@@ -401,7 +401,6 @@ if selection == "Home":
             st.warning(f"⚠️ Missing columns. Please verify that your file has `{type_col}` and `{amount_col}` fields.")
 
         # --- INVENTORY SECTION START ---
-        # --- INVENTORY SECTION START ---
         st.markdown("---")
         st.write(
             '<p style="font-family: Arial Nova Cond; color: #1e3d59; font-size: 30px; font-weight: bold; text-align: left; margin-bottom: 20px;">📦 Inventory & Current Stock Status</p>',
@@ -559,53 +558,78 @@ elif selection == "New Transaction Entry":
     sidebar_tab1, sidebar_tab2 = st.sidebar.tabs(["➕ Add/Edit Item", "🗑️ Delete Item"])
 
     with sidebar_tab1:
+        # 1. Fetch existing items for the dropdown outside the form
+        try:
+            raw_rows = lookup_worksheet.get_all_values()
+            existing_items = [row[0].strip() for row in raw_rows[1:] if row]
+        except Exception:
+            raw_rows = []
+            existing_items = []
+
+        # 2. Setup options and selection OUTSIDE the form for dynamic reactivity
+        options = ["-- Select Existing Item --", "➕ Add New Item..."] + sorted(list(set(existing_items)))
+        selected_option = st.selectbox("Particular Name", options, key="sidebar_select_particular")
+
+        # 3. Conditionally show text input dynamically
+        input_particular = ""
+        if selected_option == "➕ Add New Item...":
+            input_particular = st.text_input("Enter New Particular Name (e.g. Wine)", key="sidebar_new_particular").strip()
+        elif selected_option != "-- Select Existing Item --":
+            input_particular = selected_option
+
+        # 4. Form for submission data
         with st.form("add_edit_form", clear_on_submit=True):
-            input_particular = st.text_input("Particular Name (e.g. Wine)").strip()
             input_price = st.number_input("Price (Ugx)", min_value=0, step=500, value=0)
             submit_item = st.form_submit_button("Save Item to Sheet")
-    
-            if submit_item and input_particular:
-                try:
-                    raw_rows = lookup_worksheet.get_all_values()
-                    item_found = False
-                    for r_idx, row_values in enumerate(raw_rows):
-                        if r_idx == 0: continue
-                        if row_values and row_values[0].strip().lower() == input_particular.lower():
-                            lookup_worksheet.update_cell(r_idx + 1, 2, input_price)
-                            item_found = True
-                            break
-            
-                    if not item_found:
-                        lookup_worksheet.append_row([input_particular, input_price])
-            
-                    if input_price == 0:
-                        st.sidebar.warning(f"⚠️ Saved '{input_particular}' with a 0 Ugx price.")
-                    else:
-                        st.sidebar.success(f"✅ Saved '{input_particular}' with Price {input_price:,} Ugx!")
-                    st.rerun()
-                except Exception as ex:
-                    st.sidebar.error(f"Error saving to spreadsheet: {str(ex)}")
+
+            if submit_item:
+                if not input_particular:
+                    st.toast("⚠️ Please select or enter a valid Particular Name.")
+                else:
+                    try:
+                        item_found = False
+                        for r_idx, row_values in enumerate(raw_rows):
+                            if r_idx == 0:
+                                continue
+                            if row_values and row_values[0].strip().lower() == input_particular.lower():
+                                lookup_worksheet.update_cell(r_idx + 1, 2, input_price)
+                                item_found = True
+                                break
+
+                        if not item_found:
+                            lookup_worksheet.append_row([input_particular, input_price])
+
+                        if input_price == 0:
+                            st.toast(f"⚠️ Saved '{input_particular}' with a 0 Ugx price.")
+                        else:
+                            st.toast(f"✅ Saved '{input_particular}' with Price {input_price:,} Ugx!")
+
+                        st.rerun()
+                    except Exception as ex:
+                        st.toast(f"❌ Error: {str(ex)}")
 
     with sidebar_tab2:
         if PARTICULARS_MAP:
             sorted_delete_items = sorted(list(PARTICULARS_MAP.keys()))
-            item_to_delete = st.selectbox("Select Item to Remove", sorted_delete_items)
+            item_to_delete = st.selectbox("Select Item to Remove", sorted_delete_items, key="sidebar_delete_select")
             if st.button("Delete Selected Item", type="primary"):
                 try:
                     raw_rows = lookup_worksheet.get_all_values()
                     for r_idx, row_values in enumerate(raw_rows):
-                        if r_idx == 0: continue
+                        if r_idx == 0: 
+                            continue
                         if row_values and row_values[0].strip() == item_to_delete:
                             lookup_worksheet.delete_rows(r_idx + 1)
-                            st.sidebar.success(f"🗑️ Deleted '{item_to_delete}' from Sheet!")
+                            st.toast(f"🗑️ Deleted '{item_to_delete}' from Sheet!")
                             st.rerun()
                             break
                 except Exception as ex:
-                    st.sidebar.error(f"Error deleting item: {str(ex)}")
+                    st.toast(f"❌ Error deleting item: {str(ex)}")
         else:
             st.caption("No items available to remove.")
 
     available_items = ["--Select Item--"] + sorted(list(PARTICULARS_MAP.keys()))
+
     # --- 1. BATCH CONFIGURATION LINE ---
     col_d1, col_d2, col_d3 = st.columns(3)
     with col_d1:
@@ -866,3 +890,4 @@ elif selection == "View Particular List":
         st.dataframe(df, use_container_width=True)
     else:
         st.warning("No data found in the spreadsheet.")
+
