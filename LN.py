@@ -172,8 +172,8 @@ def get_google_sheet_workbook(workbook_name):
             st.stop()
 
 # --- 3. INSTANTIATE WORKBOOK AND WORKSHEETS ---
-client, sheet = get_google_sheet_workbook("NeDin")
-nedin_ent_sheet = sheet.worksheet("nedin@ent")
+client, sheet = get_google_sheet_workbook("Lnbuss")
+nedin_ent_sheet = sheet.worksheet("LNenterprise")
 
 # --- 4. DYNAMIC DATA FETCHING (CACHED) ---
 @st.cache_data(ttl=600)  # Caches the parsed data list for 10 minutes
@@ -216,8 +216,8 @@ if selection == "Home":
 
     # 1. Google Sheets Connection
     try:
-        client, sheet = get_google_sheet_workbook("NeDin")
-        financial_sheet = sheet.worksheet("nedin@ent")
+        client, sheet = get_google_sheet_workbook("Lnbuss")
+        financial_sheet = sheet.worksheet("LNenterprise")
         data = financial_sheet.get_all_records()
         df = pd.DataFrame(data)
     except NameError:
@@ -230,8 +230,8 @@ if selection == "Home":
         creds = Credentials.from_service_account_info(service_account_info, scopes=scope)
         client = gspread.authorize(creds)
         
-        sheet = client.open("NeDin")
-        financial_sheet = sheet.worksheet("nedin@ent")
+        sheet = client.open("Lnbuss")
+        financial_sheet = sheet.worksheet("LNenterprise")
         data = financial_sheet.get_all_records()
         df = pd.DataFrame(data)
 
@@ -643,7 +643,7 @@ elif selection == "New Transaction Entry":
     st.sidebar.caption("Manage items in your Particulars_Prices tab.")
 
     try:
-        spreadsheet = client.open("NeDin")
+        spreadsheet = client.open("Lnbuss")
         try:
             lookup_worksheet = spreadsheet.worksheet("Particulars&Prices")
         except Exception:
@@ -941,7 +941,7 @@ elif selection == "New Transaction Entry":
             if not has_errors and len(rows_to_append) > 0:
                 with st.spinner("⏳ Safely writing batch to Google Sheets..."):
                     try:
-                        enterprise_worksheet = spreadsheet.worksheet("nedin@ent")
+                        enterprise_worksheet = spreadsheet.worksheet("LNenterprise")
                         enterprise_worksheet.append_rows(rows_to_append)
                     
                         markdown_table = (
@@ -980,7 +980,7 @@ elif selection == "View Particular List":
     
     # 1. Google Sheets Connection
     try:
-        client, sheet = get_google_sheet_workbook("NeDin")
+        client, sheet = get_google_sheet_workbook("Lnbuss")
         financial_sheet = sheet.worksheet("Particulars&Prices")
         data = financial_sheet.get_all_records()
         df = pd.DataFrame(data)
