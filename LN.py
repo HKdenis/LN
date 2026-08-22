@@ -487,7 +487,7 @@ if selection == "Home":
         # --- GRAPH GENERATION START ---
         st.markdown("---")
         st.write(
-            '<p style="font-family: Consolas; color: #695e82; font-size: 25px; font-weight: bold; text-align: left; margin-bottom: 20px;">📊Networth Transaction Graphical Display Display</p>',
+            '<p style="font-family: Consolas; color: #695e82; font-size: 25px; font-weight: bold; text-align: left; margin-bottom: 20px;">📊Networth Transaction Graphical Display</p>',
             unsafe_allow_html=True,
         )
     
@@ -510,7 +510,7 @@ if selection == "Home":
         # --- INVENTORY SECTION START ---
         st.markdown("---")
         st.write(
-            '<p style="font-family: Consolas; color: #1e3d59; font-size: 30px; font-weight: bold; text-align: left; margin-bottom: 20px;">📦 Inventory & Current Stock Status</p>',
+            '<p style="font-family: Consolas; color: #1e3d59; font-size: 30px; font-weight: bold; text-align: left; margin-bottom: 20px;">📦Inventory/Stock Monitoring</p>',
             unsafe_allow_html=True,
         )
 
