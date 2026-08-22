@@ -203,7 +203,7 @@ selection = st.sidebar.radio(
 
 # Add a logout action cleanly inside the bottom of your sidebar panel
 st.sidebar.markdown("---")
-if st.sidebar.button("🚪 Log Out", use_container_width=False):
+if st.sidebar.button("🚪 Log Out the System Account", use_container_width=False):
     st.session_state.logged_in = False
     st.rerun()
 
