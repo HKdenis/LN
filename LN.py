@@ -81,8 +81,8 @@ def login():
     col1, col2, col3 = st.columns([1, 1.4, 1])
     with col2:
         with st.form("login_form", clear_on_submit=False):
-            password_input = st.text_input("System Password", type="password", help="Enter authorization key", icon=":material/lock:")
-            submit_button = st.form_submit_button("Verify password and Log In", use_container_width=False)
+            password_input = st.text_input("Enter system Password", type="password", help="Enter authorization key", icon=":material/lock:")
+            submit_button = st.form_submit_button("Verify password and Login", use_container_width=False)
             
             if submit_button:
                 if password_input == st.secrets.get("nedin", "123"):
