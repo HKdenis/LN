@@ -360,7 +360,7 @@ if selection == "Home":
 
     # 4. Main Page Display & Download Action
     st.write(
-            '<p style="font-family: Consolas; color: #695e82; font-size: 25px; font-weight: bold; text-align: left; margin-bottom: 20px;">📋 Pauliz_p&j Transaction Records</p>',
+            '<p style="font-family: Consolas; color: #695e82; font-size: 25px; font-weight: bold; text-align: left; margin-bottom: 20px;">📋Business Records</p>',
             unsafe_allow_html=True,
         )
 
