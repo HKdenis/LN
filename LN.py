@@ -2,15 +2,106 @@ import gspread
 import pandas as pd
 import streamlit as st
 import datetime
-import time
+from google.oauth2.service_account import Credentials
+import time 
+import gspread
 from google.oauth2.service_account import Credentials
 
-
-# Configure the Streamlit page layout
+# --- 0. INITIAL CONFIGURATION ---
+# Streamlit requires set_page_config to be the very first Streamlit command executed!
 st.set_page_config(page_title="Pauliz P&J", layout="wide")
+
+# Initialize session state for login status
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
+# --- BEAUTIFUL LOGIN INTERFACE FUNCTION ---
+def login():
+    # Inject Custom CSS for a beautiful, modern card login layout
+    st.markdown("""
+        <style>
+        /* Hide default Streamlit sidebar and headers on the login screen */
+        [data-testid="stSidebar"] { display: none; }
+        [data-testid="stHeader"] { display: none; }
+        
+        /* Centered background container */
+        .login-container {
+            max-width: 450px;
+            margin: 80px auto 20px auto;
+            background: #ffffff;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.03);
+            border: 1px solid #e2e8f0;
+            text-align: center;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .login-title {
+            font-family: 'Agency FB', sans-serif;
+            color: #42c8f5;
+            font-size: 42px;
+            font-weight: 800;
+            margin-bottom: 5px;
+            letter-spacing: 1px;
+        }
+        
+        .login-subtitle {
+            color: #718096;
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
+        
+        /* Style the input form label inside the card */
+        .login-card-label {
+            text-align: left;
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # Render HTML Card structure snippet wrapper
+    st.markdown("""
+        <div class="login-container">
+            <div class="login-title">Pauliz P&J</div>
+            <div class="login-subtitle">Please enter your password to access the system</div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # Use a neat vertical column centering trick for the interactive widget element
+    col1, col2, col3 = st.columns([1, 1.8, 1])
+    with col2:
+        with st.form("login_form", clear_on_submit=False):
+            password_input = st.text_input("Application Password", type="password", help="Enter authorization key")
+            submit_button = st.form_submit_button("Authenticate & Log In", use_container_width=True)
+            
+            if submit_button:
+                if password_input == st.secrets.get("nedin", "123"):
+                    st.session_state.logged_in = True
+                    st.success("Access Granted! Loading system...")
+                    st.rerun()
+                else:
+                    st.error("🔒 Access Denied. Invalid password string.")
+
+# Run Login Guard logic check block 
+if not st.session_state.logged_in:
+    login()
+    st.stop() # Stops execution here so unauthenticated users see absolutely nothing else below
+
+
+# --- 1. APP WORKSPACE CUSTOM GLOBAL STYLING ---
 st.markdown("""
     <style>
-    /* 1. Base Editor Wrapper: Adds card styling and smooth glow on interaction */
+    /* Base Editor Wrapper: Adds card styling and smooth glow on interaction */
     div[data-testid="stDataEditor"] {
         background-color: #ffffff;
         border: 2px solid #e2e8f0;
@@ -20,14 +111,14 @@ st.markdown("""
         transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     }
     
-    /* 2. Focused Interaction: Changes border color to your brand signature color when editing */
+    /* Focused Interaction: Changes border color to your brand signature color when editing */
     div[data-testid="stDataEditor"]:focus-within,
     div[data-testid="stDataEditor"]:hover {
         border-color: #ff4b4b;
         box-shadow: 0 10px 15px -3px rgba(255, 75, 75, 0.08), 0 4px 6px -2px rgba(255, 75, 75, 0.04);
     }
 
-    /* 3. Toolbar and Add Row Action Button Customization */
+    /* Toolbar and Add Row Action Button Customization */
     div[data-testid="stDataEditor"] button {
         border-radius: 6px !important;
         transition: all 0.2s ease !important;
@@ -37,7 +128,7 @@ st.markdown("""
         color: #ff4b4b !important;
     }
 
-    /* 4. Streamlit Metric Cards Cohesiveness Layout */
+    /* Streamlit Metric Cards Cohesiveness Layout */
     div[data-testid="stMetricValue"] {
         font-family: 'Segoe UI Mono', monospace !important;
         font-weight: 700 !important;
@@ -53,46 +144,56 @@ SCOPE = [
     'https://www.googleapis.com/auth/drive'
 ]
 
-# --- 1. SINGLE POINT INITIALIZATION FUNCTION ---
+# --- 2. SINGLE POINT INITIALIZATION FUNCTION ---
 @st.cache_resource
 def get_google_sheet_workbook(workbook_name):
     """
     Authenticates and opens a global persistent workbook connection reference.
-    Returns BOTH the authorized client and the opened workbook.
+    Includes built-in network retries for unstable connections.
     """
-    try:
-        service_account_info = st.secrets["gcp_service_account"]
-        credentials = Credentials.from_service_account_info(
-            service_account_info, 
-            scopes=SCOPE
-        )
-        gspread_client = gspread.authorize(credentials)
-        opened_workbook = gspread_client.open(workbook_name)
-        return gspread_client, opened_workbook   
-    except Exception as api_err:
-        st.error("🔒 Google API Authentication Failed. Please verify your secrets configuration.")
-        st.exception(api_err)
-        st.stop()
+    service_account_info = st.secrets["gcp_service_account"]
+    credentials = Credentials.from_service_account_info(
+        service_account_info, 
+        scopes=SCOPE
+    )
+    
+    # Attempt connection with up to 3 retries if the remote end disconnects
+    for attempt in range(3):
+        try:
+            gspread_client = gspread.authorize(credentials)
+            opened_workbook = gspread_client.open(workbook_name)
+            return gspread_client, opened_workbook   
+        except Exception as api_err:
+            if attempt < 2:  # If it's the 1st or 2nd fail, wait and try again
+                time.sleep(2)
+                continue
+            st.error("🔒 Google API Authentication/Connection Failed. Please check your internet connection.")
+            st.exception(api_err)
+            st.stop()
 
-# --- 2. INSTANTIATE WORKBOOK AND WORKSHEETS ---
-client, sheet = get_google_sheet_workbook("Lnbuss")
-LNenterprise_sheet = sheet.worksheet("LNenterprise")
+# --- 3. INSTANTIATE WORKBOOK AND WORKSHEETS ---
+client, sheet = get_google_sheet_workbook("NeDin")
+nedin_ent_sheet = sheet.worksheet("nedin@ent")
 
-# --- 3. DYNAMIC DATA FETCHING ---
-@st.cache_data(ttl=600)  # Caches Particulars list for 10 minutes to keep the app fast
+# --- 4. DYNAMIC DATA FETCHING (CACHED) ---
+@st.cache_data(ttl=600)  # Caches the parsed data list for 10 minutes
 def get_Particulars():
     try:
         Particulars_sheet = sheet.worksheet("Particulars")
         records = Particulars_sheet.col_values(1)
-        if records and records[0].lower() in ["Particulars", "Particular", "Particulars List"]:
+        
+        if records and str(records[0]).strip().lower() in ["particulars", "particular", "particulars list"]:
             records = records[1:]
-        cleaned_Particulars = [Particulars.strip() for Particulars in records if Particulars.strip()]
+        
+        cleaned_Particulars = [str(p).strip() for p in records if str(p).strip()]
 
         if cleaned_Particulars:
             return cleaned_Particulars
+            
     except Exception as e:
-        print(f"Error fetching particulars: {e}") 
+        st.error(f"Error fetching particulars: {e}") 
     return ["General / Non-Particulars"]
+
 
 # --- SIDEBAR NAVIGATION ---
 st.sidebar.title("🎯 Navigation")
@@ -100,17 +201,23 @@ selection = st.sidebar.radio(
     "Go to page:", ["Home","New Transaction Entry", "View Particular List"]
 )
 
+# Add a logout action cleanly inside the bottom of your sidebar panel
+st.sidebar.markdown("---")
+if st.sidebar.button("🚪 Log Out", use_container_width=True):
+    st.session_state.logged_in = False
+    st.rerun()
+
 # --- PAGE 1: HOME ---
 if selection == "Home":
     st.write(
-        '<p style="font-family: Agency FB; color:#695e82; font-size: 60px; font-weight: bold; text-align: center; margin-bottom: 20px;">📊 Pauliz P&J</p>',
+        '<p style="font-family: Agency FB; color: #42c8f5; font-size: 60px; font-weight: bold; text-align: center; margin-bottom: 20px;">📊 Pauliz P&J</p>',
         unsafe_allow_html=True,
     )
-    
+
     # 1. Google Sheets Connection
     try:
-        client, sheet = get_google_sheet_workbook("Lnbuss")
-        financial_sheet = sheet.worksheet("LNenterprise")
+        client, sheet = get_google_sheet_workbook("NeDin")
+        financial_sheet = sheet.worksheet("nedin@ent")
         data = financial_sheet.get_all_records()
         df = pd.DataFrame(data)
     except NameError:
@@ -123,8 +230,8 @@ if selection == "Home":
         creds = Credentials.from_service_account_info(service_account_info, scopes=scope)
         client = gspread.authorize(creds)
         
-        sheet = client.open("Lnbuss")
-        financial_sheet = sheet.worksheet("LNenterprise")
+        sheet = client.open("NeDin")
+        financial_sheet = sheet.worksheet("nedin@ent")
         data = financial_sheet.get_all_records()
         df = pd.DataFrame(data)
 
@@ -536,7 +643,7 @@ elif selection == "New Transaction Entry":
     st.sidebar.caption("Manage items in your Particulars_Prices tab.")
 
     try:
-        spreadsheet = client.open("Lnbuss")
+        spreadsheet = client.open("NeDin")
         try:
             lookup_worksheet = spreadsheet.worksheet("Particulars&Prices")
         except Exception:
@@ -834,7 +941,7 @@ elif selection == "New Transaction Entry":
             if not has_errors and len(rows_to_append) > 0:
                 with st.spinner("⏳ Safely writing batch to Google Sheets..."):
                     try:
-                        enterprise_worksheet = spreadsheet.worksheet("LNenterprise")
+                        enterprise_worksheet = spreadsheet.worksheet("nedin@ent")
                         enterprise_worksheet.append_rows(rows_to_append)
                     
                         markdown_table = (
@@ -873,7 +980,7 @@ elif selection == "View Particular List":
     
     # 1. Google Sheets Connection
     try:
-        client, sheet = get_google_sheet_workbook("Lnbuss")
+        client, sheet = get_google_sheet_workbook("NeDin")
         financial_sheet = sheet.worksheet("Particulars&Prices")
         data = financial_sheet.get_all_records()
         df = pd.DataFrame(data)
@@ -887,7 +994,7 @@ elif selection == "View Particular List":
         creds = Credentials.from_service_account_info(service_account_info, scopes=scope)
         client = gspread.authorize(creds)
         
-        sheet = client.open("Lnbuss")
+        sheet = client.open("NeDin")
         financial_sheet = sheet.worksheet("Particulars&Prices")
         data = financial_sheet.get_all_records()
         df = pd.DataFrame(data)
