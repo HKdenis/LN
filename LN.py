@@ -273,8 +273,8 @@ if selection == "Home":
         key="end_date_key"
     )
 
-    #st.sidebar.markdown("---")
-    st.sidebar.header("🎯 Filter by Record Type")
+    st.sidebar.markdown("---")
+    st.sidebar.header("Filter by Record Type")
 
     # Copy the DataFrame to keep operations isolated
     filtered_df = df.copy()
