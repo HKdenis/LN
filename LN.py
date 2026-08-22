@@ -210,7 +210,7 @@ if st.sidebar.button("🚪 Log Out", use_container_width=True):
 # --- PAGE 1: HOME ---
 if selection == "Home":
     st.write(
-        '<p style="font-family: Consolas; color: #42c8f5; font-size: 60px; font-weight: bold; text-align: center; margin-bottom: 20px;">📊 Pauliz P&J</p>',
+        '<p style="font-family: Consolas; color: #42c8f5; font-size: 60px; font-weight: bold; text-align: center; margin-bottom: 20px;">📊 Pauliz Pub & Joint System </p>',
         unsafe_allow_html=True,
     )
 
@@ -360,7 +360,7 @@ if selection == "Home":
 
     # 4. Main Page Display & Download Action
     st.write(
-            '<p style="font-family: Arial Nova Cond; color: #695e82; font-size: 25px; font-weight: bold; text-align: left; margin-bottom: 20px;">📋 Pauliz_p&j Transaction Records</p>',
+            '<p style="font-family: Consolas; color: #695e82; font-size: 25px; font-weight: bold; text-align: left; margin-bottom: 20px;">📋 Pauliz_p&j Transaction Records</p>',
             unsafe_allow_html=True,
         )
 
@@ -487,7 +487,7 @@ if selection == "Home":
         # --- GRAPH GENERATION START ---
         st.markdown("---")
         st.write(
-            '<p style="font-family: Arial Nova Cond; color: #695e82; font-size: 30px; font-weight: bold; text-align: left; margin-bottom: 20px;">📊 P_p&j Financial Position</p>',
+            '<p style="font-family: Consolas; color: #695e82; font-size: 30px; font-weight: bold; text-align: left; margin-bottom: 20px;">📊 P_p&j Financial Position</p>',
             unsafe_allow_html=True,
         )
     
@@ -510,7 +510,7 @@ if selection == "Home":
         # --- INVENTORY SECTION START ---
         st.markdown("---")
         st.write(
-            '<p style="font-family: Arial Nova Cond; color: #1e3d59; font-size: 30px; font-weight: bold; text-align: left; margin-bottom: 20px;">📦 Inventory & Current Stock Status</p>',
+            '<p style="font-family: Consolas; color: #1e3d59; font-size: 30px; font-weight: bold; text-align: left; margin-bottom: 20px;">📦 Inventory & Current Stock Status</p>',
             unsafe_allow_html=True,
         )
 
@@ -614,7 +614,7 @@ elif selection == "New Transaction Entry":
     )
     
     st.write(
-            '<p style="font-family: Agency FB; color: #695e82; font-size: 35px; font-weight: bold; text-align: center; margin-bottom: 20px;">📊 Pauliz P&J,Sales, Purchases & Expenses entry section</p>',
+            '<p style="font-family: Consolas; color: #695e82; font-size: 35px; font-weight: bold; text-align: center; margin-bottom: 20px;">📊 Pauliz P&J,Sales, Purchases & Expenses entry section</p>',
             unsafe_allow_html=True,
         )
     # --- 0. INITIALIZATION & SESSION STATES ---
