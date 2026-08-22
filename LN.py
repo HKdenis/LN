@@ -544,8 +544,8 @@ if selection == "Home":
                 )
             )
 
-                    # 4. Display via Streamlit's native Altair bridge
-                    st.altair_chart(chart, use_container_width=True)
+            # 4. Display via Streamlit's native Altair bridge
+            st.altair_chart(chart, use_container_width=True)
 
             if net_amount >= 0:
                 st.success(f"🟢 **Net Position:** Surplus of **Ugx{net_amount:,}**")
