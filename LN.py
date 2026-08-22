@@ -82,7 +82,7 @@ def login():
     with col2:
         with st.form("login_form", clear_on_submit=False):
             password_input = st.text_input("Application Password", type="password", help="Enter authorization key")
-            submit_button = st.form_submit_button("Authenticate & Log In", use_container_width=True)
+            submit_button = st.form_submit_button("Authenticate & Log In", use_container_width=False)
             
             if submit_button:
                 if password_input == st.secrets.get("nedin", "123"):
