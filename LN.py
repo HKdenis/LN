@@ -661,7 +661,7 @@ elif selection == "New Transaction Entry":
     )
     
     st.write(
-            '<p style="font-family: Consolas; color: #695e82; font-size: 35px; font-weight: bold; text-align: center; margin-bottom: 20px;">📊 Pauliz P&J,Sales, Purchases & Expenses entry section</p>',
+            '<p style="font-family: Consolas; color: #695e82; font-size: 35px; font-weight: bold; text-align: center; margin-bottom: 20px;">TRANSACTION ENTRY FORM</p>',
             unsafe_allow_html=True,
         )
     # --- 0. INITIALIZATION & SESSION STATES ---
