@@ -5,6 +5,7 @@ import datetime
 from google.oauth2.service_account import Credentials
 import time 
 import gspread
+import altair as alt
 
 # --- 0. INITIAL CONFIGURATION ---
 # Streamlit requires set_page_config to be the very first Streamlit command executed!
@@ -492,50 +493,59 @@ if selection == "Home":
         if type_col in filtered_df.columns and amount_col in filtered_df.columns:
             # 1. Define your exact desired sequence order
             desired_order = [
-                "Net Amount", 
-                "Sales", 
-                "Credit Sales", 
-                "Purchases", 
-                "Credit Purchases", 
-                "Expenses", 
-                "Debt settlement business", 
-                "Debt settlement creditor"
+                "Net Amount",
+                "Sales",
+                "Credit Sales",
+                "Purchases",
+                "Credit Purchases",
+                "Expenses",
+                "Debt settlement business",
+                "Debt settlement creditor",
             ]
-    
-            # 2. Build the initial dictionary array
-            plot_data = pd.DataFrame({
-                "Transaction Type": desired_order,
-                "Total Amount (Ugx)": [
-                    net_amount, sales_total, credit_sales_total, purchases_total, 
-                    credit_purchases_total, expenses_total, debt_biz_total, debt_cred_total
-                ]
-            })
-    
-            # 3. Explicitly lock the category sequence order to prevent alphabetical sorting
-            plot_data["Transaction Type"] = pd.Categorical(
-                plot_data["Transaction Type"], 
-                categories=desired_order, 
-                ordered=True
+
+            # 2. Build the dataframe
+            plot_data = pd.DataFrame(
+                {
+                    "Transaction Type": desired_order,
+                    "Total Amount (Ugx)": [
+                        net_amount,
+                        sales_total,
+                        credit_sales_total,
+                        purchases_total,
+                        credit_purchases_total,
+                        expenses_total,
+                        debt_biz_total,
+                        debt_cred_total,
+                    ],
+                }
             )
 
-            # 4. Use Streamlit's native config option for layout gridlines
-            st.bar_chart(
-                data=plot_data, 
-                x="Transaction Type", 
-                y="Total Amount (Ugx)", 
-                color="Transaction Type", 
-                width="stretch",
-                config={"grid": {"y": True, "x": False}}  # Explicit horizontal grid lines configuration
+            # 3. Create an Altair bar chart with explicit grid and sorting controls
+            chart = (
+                alt.Chart(plot_data)
+                .mark_bar()
+                .encode(
+                    x=alt.X(
+                        "Transaction Type:N",
+                        sort=desired_order,  # Locks the bar order perfectly
+                        axis=alt.Axis(
+                            labelAngle=-45
+                        ),  # Tilts text so categories don't overlap
+                    ),
+                    y=alt.Y(
+                        "Total Amount (Ugx):Q",
+                        axis=alt.Axis(grid=True),  # Forces clean horizontal grid lines
+                    ),
+                    color=alt.Color(
+                        "Transaction Type:N",
+                        scale=alt.Scale(scheme="tableau10"),  # Optional neat color palette
+                        legend=None,  # Hides redundant legend to maximize screen width
+                    ),
+                )
             )
 
-        #if type_col in filtered_df.columns and amount_col in filtered_df.columns:
-            # Debt settlement fields remain mapped to the chart dictionary array
-            #plot_data = pd.DataFrame({
-                #"Transaction Type": ["Net Amount", "Sales", "Credit Sales", "Purchases", "Credit Purchases", "Expenses", "Debt settlement business", "Debt settlement creditor"],
-                #"Total Amount (Ugx)": [net_amount, sales_total, credit_sales_total, purchases_total, credit_purchases_total, expenses_total, debt_biz_total, debt_cred_total]
-            #})
-
-            #st.bar_chart(data=plot_data, x="Transaction Type", y="Total Amount (Ugx)", color="Transaction Type", use_container_width=True)
+                    # 4. Display via Streamlit's native Altair bridge
+                    st.altair_chart(chart, use_container_width=True)
 
             if net_amount >= 0:
                 st.success(f"🟢 **Net Position:** Surplus of **Ugx{net_amount:,}**")
