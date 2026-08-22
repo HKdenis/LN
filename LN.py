@@ -82,7 +82,7 @@ def login():
     with col2:
         with st.form("login_form", clear_on_submit=False):
             password_input = st.text_input("Application Password", type="password", help="Enter authorization key")
-            submit_button = st.form_submit_button("Authenticate & Log In", use_container_width=False)
+            submit_button = st.form_submit_button("Log In", use_container_width=False)
             
             if submit_button:
                 if password_input == st.secrets.get("nedin", "123"):
@@ -203,7 +203,7 @@ selection = st.sidebar.radio(
 
 # Add a logout action cleanly inside the bottom of your sidebar panel
 st.sidebar.markdown("---")
-if st.sidebar.button("🚪 Log Out", use_container_width=True):
+if st.sidebar.button("🚪 Log Out", use_container_width=False):
     st.session_state.logged_in = False
     st.rerun()
 
