@@ -5,7 +5,6 @@ import datetime
 from google.oauth2.service_account import Credentials
 import time 
 import gspread
-from google.oauth2.service_account import Credentials
 
 # --- 0. INITIAL CONFIGURATION ---
 # Streamlit requires set_page_config to be the very first Streamlit command executed!
@@ -490,7 +489,48 @@ if selection == "Home":
             '<p style="font-family: Consolas; color: #695e82; font-size: 25px; font-weight: bold; text-align: left; margin-bottom: 20px;">📊Networth Transaction Graphical Display</p>',
             unsafe_allow_html=True,
         )
+        import pandas as pd
+        import streamlit as st
+
+        if type_col in filtered_df.columns and amount_col in filtered_df.columns:
+            # 1. Define your exact desired sequence order
+            desired_order = [
+                "Net Amount", 
+                "Sales", 
+                "Credit Sales", 
+                "Purchases", 
+                "Credit Purchases", 
+                "Expenses", 
+                "Debt settlement business", 
+                "Debt settlement creditor"
+            ]
     
+            # 2. Build the initial dictionary array
+            plot_data = pd.DataFrame({
+                "Transaction Type": desired_order,
+                "Total Amount (Ugx)": [
+                    net_amount, sales_total, credit_sales_total, purchases_total, 
+                    credit_purchases_total, expenses_total, debt_biz_total, debt_cred_total
+                ]
+            })
+    
+            # 3. Explicitly lock the category sequence order to prevent alphabetical sorting
+            plot_data["Transaction Type"] = pd.Categorical(
+                plot_data["Transaction Type"], 
+                categories=desired_order, 
+                ordered=True
+            )
+
+            # 4. Use Streamlit's native config option for layout gridlines
+            st.bar_chart(
+                data=plot_data, 
+                x="Transaction Type", 
+                y="Total Amount (Ugx)", 
+                color="Transaction Type", 
+                width="stretch",
+                config={"grid": {"y": True, "x": False}}  # Explicit horizontal grid lines configuration
+            )
+
         if type_col in filtered_df.columns and amount_col in filtered_df.columns:
             # Debt settlement fields remain mapped to the chart dictionary array
             plot_data = pd.DataFrame({
