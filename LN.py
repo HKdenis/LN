@@ -75,7 +75,7 @@ def login():
             <div class="login-title">Pauliz P&J</div>
             <div class="login-subtitle">Please enter your password to access the system</div>
         </div>
-    """, unsafe_allow_html=False)
+    """, unsafe_allow_html=True)
 
     # Use a neat vertical column centering trick for the interactive widget element
     col1, col2, col3 = st.columns([1, 1.8, 1])
