@@ -210,7 +210,7 @@ if st.sidebar.button("🚪 Log Out", use_container_width=True):
 # --- PAGE 1: HOME ---
 if selection == "Home":
     st.write(
-        '<p style="font-family: Consolas; color: #42c8f5; font-size: 60px; font-weight: bold; text-align: center; margin-bottom: 20px;">📊https://pin.it/2V4Sy4WDr Pauliz Pub&Joint System</p>',
+        '<p style="font-family: Consolas; color: #42c8f5; font-size: 60px; font-weight: bold; text-align: center; margin-bottom: 20px;">Pauliz Pub&Joint System</p>',
         unsafe_allow_html=True,
     )
 
