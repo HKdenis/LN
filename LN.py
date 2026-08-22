@@ -81,7 +81,7 @@ def login():
     col1, col2, col3 = st.columns([1, 1.4, 1])
     with col2:
         with st.form("login_form", clear_on_submit=False):
-            password_input = st.text_input("System Password", type="password", help="Enter authorization key")
+            password_input = st.text_input("System Password", type="password", help="Enter authorization key", icon=":material/lock:")
             submit_button = st.form_submit_button("Log In", use_container_width=False)
             
             if submit_button:
