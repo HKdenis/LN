@@ -489,9 +489,6 @@ if selection == "Home":
             '<p style="font-family: Consolas; color: #695e82; font-size: 25px; font-weight: bold; text-align: left; margin-bottom: 20px;">📊Networth Transaction Graphical Display</p>',
             unsafe_allow_html=True,
         )
-        import pandas as pd
-        import streamlit as st
-
         if type_col in filtered_df.columns and amount_col in filtered_df.columns:
             # 1. Define your exact desired sequence order
             desired_order = [
@@ -531,14 +528,14 @@ if selection == "Home":
                 config={"grid": {"y": True, "x": False}}  # Explicit horizontal grid lines configuration
             )
 
-        if type_col in filtered_df.columns and amount_col in filtered_df.columns:
+        #if type_col in filtered_df.columns and amount_col in filtered_df.columns:
             # Debt settlement fields remain mapped to the chart dictionary array
-            plot_data = pd.DataFrame({
-                "Transaction Type": ["Net Amount", "Sales", "Credit Sales", "Purchases", "Credit Purchases", "Expenses", "Debt settlement business", "Debt settlement creditor"],
-                "Total Amount (Ugx)": [net_amount, sales_total, credit_sales_total, purchases_total, credit_purchases_total, expenses_total, debt_biz_total, debt_cred_total]
-            })
+            #plot_data = pd.DataFrame({
+                #"Transaction Type": ["Net Amount", "Sales", "Credit Sales", "Purchases", "Credit Purchases", "Expenses", "Debt settlement business", "Debt settlement creditor"],
+                #"Total Amount (Ugx)": [net_amount, sales_total, credit_sales_total, purchases_total, credit_purchases_total, expenses_total, debt_biz_total, debt_cred_total]
+            #})
 
-            st.bar_chart(data=plot_data, x="Transaction Type", y="Total Amount (Ugx)", color="Transaction Type", use_container_width=True)
+            #st.bar_chart(data=plot_data, x="Transaction Type", y="Total Amount (Ugx)", color="Transaction Type", use_container_width=True)
 
             if net_amount >= 0:
                 st.success(f"🟢 **Net Position:** Surplus of **Ugx{net_amount:,}**")
