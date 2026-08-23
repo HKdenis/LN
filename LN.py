@@ -44,7 +44,7 @@ def login():
         }
         
         .login-title {
-            font-family: 'Agency FB', sans-serif;
+            font-family: 'Consolas', sans-serif;
             color: #42c8f5;
             font-size: 42px;
             font-weight: 800;
