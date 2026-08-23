@@ -201,7 +201,7 @@ def get_Particulars():
 
 
 # --- SIDEBAR NAVIGATION ---
-st.sidebar.title("🎯 Navigation")
+st.sidebar.title("🎯 Pauliz P&J System")
 selection = st.sidebar.radio(
     "Go to page:", ["Home","New Transaction Entry", "Price List"]
 )
@@ -215,10 +215,10 @@ if st.sidebar.button("🚪 Log Out the System Account", use_container_width=Fals
 # --- MAIN PAGE ROUTING CONTENT ---
 st.subheader(f"📍 {selection}")
 if selection == "Home":
-    st.write(
-        '<p style="font-family: Consolas; color: #42c8f5; font-size: 35px; font-weight: bold; text-align: center; margin-bottom: 20px;">Pauliz Pub&Joint System</p>',
-        unsafe_allow_html=True,
-    )
+    #st.write(
+        #'<p style="font-family: Consolas; color: #42c8f5; font-size: 35px; font-weight: bold; text-align: center; margin-bottom: 20px;">Pauliz Pub&Joint System</p>',
+        #unsafe_allow_html=True,
+    #)
 
     # 1. Google Sheets Connection
     try:
