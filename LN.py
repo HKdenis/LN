@@ -213,7 +213,7 @@ if st.sidebar.button("🚪 Log Out the System Account", use_container_width=Fals
     st.rerun()
 
 # --- MAIN PAGE ROUTING CONTENT ---
-st.title(f"📍 {selection}")
+st.subheader(f"📍 {selection}")
 if selection == "Home":
     st.write(
         '<p style="font-family: Consolas; color: #42c8f5; font-size: 60px; font-weight: bold; text-align: center; margin-bottom: 20px;">Pauliz Pub&Joint System</p>',
