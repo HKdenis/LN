@@ -57,15 +57,6 @@ def login():
             font-size: 14px;
             margin-bottom: 30px;
         }
-        
-        /* Style the input form label inside the card */
-        .login-card-label {
-            text-align: left;
-            font-weight: 600;
-            color: #4a5568;
-            margin-bottom: 8px;
-            font-size: 14px;
-        }
         </style>
     """, unsafe_allow_html=True)
 
@@ -77,7 +68,6 @@ def login():
         </div>
     """, unsafe_allow_html=True)
 
-    # Use a neat vertical column centering trick for the interactive widget element
     # Use a neat vertical column centering trick for the interactive widget element
     col1, col2, col3 = st.columns([1, 1.4, 1])
     with col2:
@@ -96,10 +86,10 @@ def login():
                 else:
                     st.error("🔒 Access Denied. Invalid password string.")
 
-    # Run Login Guard logic check block 
-    if not st.session_state.logged_in:
-        login()
-        st.stop() # Stops execution here so unauthenticated users see absolutely nothing else below
+# Run Login Guard logic check block 
+if not st.session_state.logged_in:
+    login()
+    st.stop() # Stops execution here so unauthenticated users see absolutely nothing else below
 
 # --- 1. APP WORKSPACE CUSTOM GLOBAL STYLING ---
 st.markdown("""
@@ -143,7 +133,7 @@ st.markdown("""
 
 # Standard modern API scope list
 SCOPE = [
-    'https://www.googleapis.com/auth/spreadsheets',
+    'https://googleapis.com',
     'https://www.googleapis.com/auth/drive'
 ]
 
@@ -209,6 +199,18 @@ st.sidebar.markdown("---")
 if st.sidebar.button("🚪 Log Out the System Account", use_container_width=False):
     st.session_state.logged_in = False
     st.rerun()
+
+# --- MAIN PAGE ROUTING CONTENT ---
+st.title(f"📍 {selection}")
+if selection == "Home":
+    st.write("Welcome to the **Pauliz PUB & Joint System** core interface.")
+    # Call your home metrics or dashboard visuals here...
+elif selection == "New Transaction Entry":
+    st.write("Record sales, stock updates, or custom expense balances.")
+    # Show transaction forms here...
+elif selection == "View Particular List":
+    particulars = get_Particulars()
+    st.write(particulars)
 
 # --- PAGE 1: HOME ---
 if selection == "Home":
