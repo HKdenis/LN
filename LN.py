@@ -202,7 +202,7 @@ def get_Particulars():
 
 # --- SIDEBAR NAVIGATION ---
 st.sidebar.write(
-        '<p style="font-family: Consolas; color: #42c8f5; font-size: 20px; font-weight: bold; text-align: Left; margin-bottom: 20px;">🎯 Pauliz P&J System</p>',
+        '<p style="font-family: Consolas; color: #4e6291; font-size: 20px; font-weight: bold; text-align: Left; margin-bottom: 20px;">🎯 Pauliz P&J System</p>',
         unsafe_allow_html=True,
     )
 selection = st.sidebar.radio(
@@ -1028,8 +1028,12 @@ elif selection == "New Transaction Entry":
                 st.session_state.last_saved_summary = None
                 st.rerun()
 
-# --- PAGE 2: REPORTS ---       
+# --- PAGE 2: Particular List ---       
 elif selection == "Price List":
+    st.write(
+        '<p style="font-family: Consolas; color: #4e6291; font-size: 15px; font-weight: bold; text-align: Left; margin-bottom: 20px;">Review the Prices and costs of each Item/good</p>',
+        unsafe_allow_html=True,
+    )
     # 1. Google Sheets Connection
     try:
         client, sheet = get_google_sheet_workbook("Lnbuss")
