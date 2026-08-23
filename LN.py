@@ -85,7 +85,7 @@ def login():
             submit_button = st.form_submit_button("Verify password and Login", use_container_width=False)
             
             if submit_button:
-                if password_input == st.secrets.get("nedin", "123"):
+                if password_input == st.secrets.get("nedin", "Uganda90*"):
                     st.session_state.logged_in = True
                     st.success("Access Granted! Loading system...")
                     st.rerun()
