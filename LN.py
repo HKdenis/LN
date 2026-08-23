@@ -232,17 +232,6 @@ if st.sidebar.button("🚪 Log Out the System Account", use_container_width=Fals
 # --- MAIN PAGE ROUTING CONTENT ---
 st.title(f"📍 {selection}")
 if selection == "Home":
-    st.write("Welcome to the **Pauliz PUB & Joint System** core interface.")
-    # Call your home metrics or dashboard visuals here...
-elif selection == "New Transaction Entry":
-    st.write("Record sales, stock updates, or custom expense balances.")
-    # Show transaction forms here...
-elif selection == "View Particular List":
-    particulars = get_Particulars()
-    st.write(particulars)
-
-# --- PAGE 1: HOME ---
-if selection == "Home":
     st.write(
         '<p style="font-family: Consolas; color: #42c8f5; font-size: 60px; font-weight: bold; text-align: center; margin-bottom: 20px;">Pauliz Pub&Joint System</p>',
         unsafe_allow_html=True,
