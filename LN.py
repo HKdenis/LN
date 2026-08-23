@@ -9,7 +9,7 @@ import altair as alt
 
 # --- 0. INITIAL CONFIGURATION ---
 # Streamlit requires set_page_config to be the very first Streamlit command executed!
-st.set_page_config(page_title="Pauliz PUB & Joint System", layout="wide")
+st.set_page_config(page_title="Pauliz PUB & Joint", layout="wide")
 
 # Initialize session state for login status
 if "logged_in" not in st.session_state:
