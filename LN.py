@@ -76,8 +76,8 @@ def login():
             submit_button = st.form_submit_button("Verify password and Login", use_container_width=False)
         
             if submit_button:
-                # Secure lookup: Fetches from secrets.toml locally or Cloud settings in production
-                system_password = st.secrets.get("nedin")
+                # Secure lookup from the passwords section
+                system_password = st.secrets.get("passwords", {}).get("nedin")
             
                 if system_password and password_input == system_password:
                     st.session_state.logged_in = True
