@@ -203,7 +203,7 @@ def get_Particulars():
 # --- SIDEBAR NAVIGATION ---
 st.sidebar.title("🎯 Navigation")
 selection = st.sidebar.radio(
-    "Go to page:", ["Home","New Transaction Entry", "View Particular List"]
+    "Go to page:", ["Home","New Transaction Entry", "Price List"]
 )
 
 # Add a logout action cleanly inside the bottom of your sidebar panel
@@ -1023,9 +1023,7 @@ elif selection == "New Transaction Entry":
                 st.rerun()
 
 # --- PAGE 2: REPORTS ---       
-elif selection == "View Particular List":
-    st.title("Price List")
-    
+elif selection == "Price List":
     # 1. Google Sheets Connection
     try:
         client, sheet = get_google_sheet_workbook("Lnbuss")
