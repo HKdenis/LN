@@ -219,7 +219,7 @@ if st.sidebar.button("🚪 Log Out the System Account", use_container_width=Fals
 st.subheader(f"📍 {selection}")
 if selection == "Home":
     st.write(
-        '<p style="font-family: Consolas; color: #42c8f5; font-size: 15px; font-weight: bold; text-align: Left; margin-bottom: 20px;">Navigate Core business Updates</p>',
+        '<p style="font-family: Consolas; color: #4e6291; font-size: 15px; font-weight: bold; text-align: Left; margin-bottom: 20px;">Navigate Core business Updates</p>',
         unsafe_allow_html=True,
     )
 
@@ -369,7 +369,7 @@ if selection == "Home":
 
     # 4. Main Page Display & Download Action
     st.write(
-            '<p style="font-family: Consolas; color: #695e82; font-size: 25px; font-weight: bold; text-align: left; margin-bottom: 20px;">📋Business Records</p>',
+            '<p style="font-family: Consolas; color: #4e6291; font-size: 25px; font-weight: bold; text-align: left; margin-bottom: 20px;">📋Business Records</p>',
             unsafe_allow_html=True,
         )
 
@@ -652,7 +652,7 @@ if selection == "Home":
 # --- PAGE 2: CAPTURE A TRANSACTION ---
 elif selection == "New Transaction Entry":
     st.write(
-        '<p style="font-family: Consolas; color: #42c8f5; font-size: 15px; font-weight: bold; text-align: Left; margin-bottom: 20px;">Record Sales, Purchases, Expenses and stock</p>',
+        '<p style="font-family: Consolas; color: #4e6291; font-size: 15px; font-weight: bold; text-align: Left; margin-bottom: 20px;">Record Sales, Purchases, Expenses and stock</p>',
         unsafe_allow_html=True,
     )
     # --- MOBILE OPTIMIZATION: Inject CSS to force smooth mobile scrolling & clean column widths ---
