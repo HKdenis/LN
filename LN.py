@@ -665,11 +665,6 @@ elif selection == "New Transaction Entry":
         </style>
         """
     )
-    
-    st.write(
-            '<p style="font-family: Consolas; color: #695e82; font-size: 35px; font-weight: bold; text-align: center; margin-bottom: 20px;">TRANSACTION ENTRY FORM</p>',
-            unsafe_allow_html=True,
-        )
     # --- 0. INITIALIZATION & SESSION STATES ---
     if "last_saved_summary" not in st.session_state:
         st.session_state.last_saved_summary = None
