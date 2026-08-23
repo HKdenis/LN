@@ -215,10 +215,10 @@ if st.sidebar.button("🚪 Log Out the System Account", use_container_width=Fals
 # --- MAIN PAGE ROUTING CONTENT ---
 st.subheader(f"📍 {selection}")
 if selection == "Home":
-    #st.write(
-        #'<p style="font-family: Consolas; color: #42c8f5; font-size: 35px; font-weight: bold; text-align: center; margin-bottom: 20px;">Pauliz Pub&Joint System</p>',
+    st.write(
+        #'<p style="font-family: Consolas; color: #42c8f5; font-size: 15px; font-weight: bold; text-align: center; margin-bottom: 20px;">Navigate Core business Updates</p>',
         #unsafe_allow_html=True,
-    #)
+    )
 
     # 1. Google Sheets Connection
     try:
@@ -648,7 +648,10 @@ if selection == "Home":
 
 # --- PAGE 2: CAPTURE A TRANSACTION ---
 elif selection == "New Transaction Entry":
-
+     st.write(
+        #'<p style="font-family: Consolas; color: #42c8f5; font-size: 15px; font-weight: bold; text-align: center; margin-bottom: 20px;">Record Sales, Purchases, Expenses and stock</p>',
+        #unsafe_allow_html=True,
+    )
     # --- MOBILE OPTIMIZATION: Inject CSS to force smooth mobile scrolling & clean column widths ---
     st.html(
         """
