@@ -73,7 +73,7 @@ def login():
     st.markdown("""
         <div class="login-container">
             <div class="login-title">Pauliz P&J</div>
-            <div class="login-subtitle">Please enter your password to access the system</div>
+            <div class="login-subtitle">Access to only Authorised Individuals</div>
         </div>
     """, unsafe_allow_html=True)
 
