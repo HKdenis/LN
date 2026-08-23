@@ -98,23 +98,6 @@ def login():
                 else:
                     st.error("🔒 Access Denied. Invalid password string.")
 
-    #col1, col2, col3 = st.columns([1, 1.4, 1])
-    #with col2:
-        #with st.form("login_form", clear_on_submit=False):
-            #password_input = st.text_input("Enter system Password", type="password", help="Enter authorization key", icon=":material/lock:")
-            #submit_button = st.form_submit_button("Verify password and Login", use_container_width=False)
-        
-            #if submit_button:
-                ## Secure lookup from the passwords section
-                #system_password = st.secrets.get("passwords", {}).get("nedin")
-            
-               # if system_password and password_input == system_password:
-                   # st.session_state.logged_in = True
-                    #st.success("Access Granted! Loading system...")
-                    #st.rerun()
-                #else:
-                    #st.error("🔒 Access Denied. Invalid password string.")
-
 # Run Login Guard logic check block 
 if not st.session_state.logged_in:
     login()
