@@ -201,9 +201,8 @@ def get_Particulars():
 
 
 # --- SIDEBAR NAVIGATION ---
-#st.sidebar.title("🎯 Pauliz P&J System")
 st.sidebar.write(
-        '<p style="font-family: Consolas; color: #42c8f5; font-size: 30px; font-weight: bold; text-align: Left; margin-bottom: 20px;">🎯 Pauliz P&J System</p>',
+        '<p style="font-family: Consolas; color: #42c8f5; font-size: 20px; font-weight: bold; text-align: Left; margin-bottom: 20px;">🎯 Pauliz P&J System</p>',
         unsafe_allow_html=True,
     )
 selection = st.sidebar.radio(
