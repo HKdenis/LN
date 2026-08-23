@@ -201,7 +201,11 @@ def get_Particulars():
 
 
 # --- SIDEBAR NAVIGATION ---
-st.sidebar.title("🎯 Pauliz P&J System")
+#st.sidebar.title("🎯 Pauliz P&J System")
+st.sidebar.write(
+        '<p style="font-family: Consolas; color: #42c8f5; font-size: 30px; font-weight: bold; text-align: Left; margin-bottom: 20px;">🎯 Pauliz P&J System</p>',
+        unsafe_allow_html=True,
+    )
 selection = st.sidebar.radio(
     "Go to page:", ["Home","New Transaction Entry", "Price List"]
 )
@@ -216,8 +220,8 @@ if st.sidebar.button("🚪 Log Out the System Account", use_container_width=Fals
 st.subheader(f"📍 {selection}")
 if selection == "Home":
     st.write(
-        #'<p style="font-family: Consolas; color: #42c8f5; font-size: 15px; font-weight: bold; text-align: center; margin-bottom: 20px;">Navigate Core business Updates</p>',
-        #unsafe_allow_html=True,
+        '<p style="font-family: Consolas; color: #42c8f5; font-size: 15px; font-weight: bold; text-align: Left; margin-bottom: 20px;">Navigate Core business Updates</p>',
+        unsafe_allow_html=True,
     )
 
     # 1. Google Sheets Connection
