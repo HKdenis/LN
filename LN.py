@@ -78,25 +78,28 @@ def login():
     """, unsafe_allow_html=True)
 
     # Use a neat vertical column centering trick for the interactive widget element
+    # Use a neat vertical column centering trick for the interactive widget element
     col1, col2, col3 = st.columns([1, 1.4, 1])
     with col2:
         with st.form("login_form", clear_on_submit=False):
             password_input = st.text_input("Enter system Password", type="password", help="Enter authorization key", icon=":material/lock:")
             submit_button = st.form_submit_button("Verify password and Login", use_container_width=False)
-            
+        
             if submit_button:
-                if password_input == st.secrets.get("nedin", "Uganda90*"):
+                # Secure lookup: Fetches from secrets.toml locally or Cloud settings in production
+                system_password = st.secrets.get("nedin")
+            
+                if system_password and password_input == system_password:
                     st.session_state.logged_in = True
                     st.success("Access Granted! Loading system...")
                     st.rerun()
                 else:
                     st.error("🔒 Access Denied. Invalid password string.")
 
-# Run Login Guard logic check block 
-if not st.session_state.logged_in:
-    login()
-    st.stop() # Stops execution here so unauthenticated users see absolutely nothing else below
-
+    # Run Login Guard logic check block 
+    if not st.session_state.logged_in:
+        login()
+        st.stop() # Stops execution here so unauthenticated users see absolutely nothing else below
 
 # --- 1. APP WORKSPACE CUSTOM GLOBAL STYLING ---
 st.markdown("""
