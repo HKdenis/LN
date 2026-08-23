@@ -648,9 +648,9 @@ if selection == "Home":
 
 # --- PAGE 2: CAPTURE A TRANSACTION ---
 elif selection == "New Transaction Entry":
-     st.write(
-        #'<p style="font-family: Consolas; color: #42c8f5; font-size: 15px; font-weight: bold; text-align: center; margin-bottom: 20px;">Record Sales, Purchases, Expenses and stock</p>',
-        #unsafe_allow_html=True,
+    st.write(
+        '<p style="font-family: Consolas; color: #42c8f5; font-size: 15px; font-weight: bold; text-align: center; margin-bottom: 20px;">Record Sales, Purchases, Expenses and stock</p>',
+        unsafe_allow_html=True,
     )
     # --- MOBILE OPTIMIZATION: Inject CSS to force smooth mobile scrolling & clean column widths ---
     st.html(
