@@ -231,7 +231,7 @@ if selection == "Home":
         data = financial_sheet.get_all_records()
         df = pd.DataFrame(data)
     except NameError:
-        # FIXED: Restored valid Google OAuth endpoints for Sheets and Drive.
+         # FIXED: Restored valid Google OAuth endpoints for Sheets and Drive.
         scope = [
             'https://googleapis.com',
             'https://googleapis.com'
