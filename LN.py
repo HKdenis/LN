@@ -149,6 +149,7 @@ SCOPE = [
     'https://www.googleapis.com/auth/drive'
 ]
 
+
 # --- 2. SINGLE POINT INITIALIZATION FUNCTION ---
 @st.cache_resource
 def get_google_sheet_workbook(workbook_name):
