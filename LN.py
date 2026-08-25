@@ -147,7 +147,7 @@ st.markdown("""
 SCOPE = [
     'https://googleapis.com',
     'https://www.googleapis.com/auth/drive'
-
+]
 
 # --- 2. SINGLE POINT INITIALIZATION FUNCTION ---
 @st.cache_resource
