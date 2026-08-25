@@ -163,15 +163,15 @@ def get_google_sheet_workbook(workbook_name):
     )
     
     # Attempt connection with up to 3 retries if the remote end disconnects
-    #for attempt in range(3):
-        #try:
-            #gspread_client = gspread.authorize(credentials)
-            ##opened_workbook = gspread_client.open(workbook_name)
-            #return gspread_client, opened_workbook   
-        #except Exception as api_err:
-            #if attempt < 2:  # If it's the 1st or 2nd fail, wait and try again
-                #time.sleep(2)
-                #continue
+    for attempt in range(3):
+        try:
+            gspread_client = gspread.authorize(credentials)
+            opened_workbook = gspread_client.open(workbook_name)
+            return gspread_client, opened_workbook   
+        except Exception as api_err:
+            if attempt < 2:  # If it's the 1st or 2nd fail, wait and try again
+                time.sleep(2)
+                continue
             #st.error("🔒 Google API Authentication/Connection Failed. Please check your internet connection.")
             #st.exception(api_err)
             #st.stop()
