@@ -1,21 +1,4 @@
-# Main App and Database
-streamlit>=1.35.0
-st-gsheets-connection>=0.1.0
-pandas>=2.0.0
-plotly>=5.0.0
-pymongo>=4.0.0
-openpyxl>=3.1.0
+streamlit
+SQLAlchemy>=2.0.0
+psycopg2-binary
 
-
-# Google Sheets Integration (Combined & Fixed)
-st-gsheets-connection
-gspread
-gspread-dataframe
-gspread-formatting
-gspread-pandas
-google-api-python-client
-
-# Calculations & Visualization
-pandas
-numpy
-matplotlib
