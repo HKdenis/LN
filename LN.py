@@ -184,16 +184,6 @@ with conn.session as session:
         );
     """))
     session.commit()
-            unit_price NUMERIC(15, 2),
-            total_amount NUMERIC(15, 2),
-            customer_name VARCHAR(255),
-            contact_number VARCHAR(255),
-            notes TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-    """)
-    session.commit()
-
 # Load mapping states out of relational tables 
 PARTICULARS_MAP = {}
 COST_MAP = {}
