@@ -849,13 +849,14 @@ elif selection == "New Transaction Entry":
                 st.rerun()
 
 # --- PAGE 2: Price List ---       
+# --- PAGE 2: Price List ---       
 elif selection == "Price List":
     st.write(
         '<p style="font-family: Consolas; color: #4e6291; font-size: 15px; font-weight: bold; text-align: Left; margin-bottom: 20px;">Review the Prices and costs of each Item/good</p>',
         unsafe_allow_html=True,
     )
     
-    # FIXED: Replaced Google Sheets extraction hooks with highly fast, concurrent secure SQL Select lookups
+    # 1. Pull directly from your native PostgreSQL database connection
     try:
         query_catalog = """
             SELECT 
@@ -864,20 +865,25 @@ elif selection == "Price List":
                 item_cost AS "Item Cost (Ugx)" 
             FROM Particulars_Prices;
         """
+        # Fetches real-time catalog directly from Supabase
         df = conn.query(query_catalog, ttl=0)
     except Exception as db_err:
-        st.error(f"❌ Failed to fetch catalog data sets from PostgreSQL: {db_err}")
+        st.error(f"❌ Failed to fetch price data items from PostgreSQL database: {db_err}")
         df = pd.DataFrame()
 
-    # 2. Render Data Layout Elements
+    # 2. Render Data
     if not df.empty:
+        # Clean up column whitespace from Database strings
         df.columns = df.columns.str.strip()
 
+        # Match exact custom column aliases mapped above
         price_col = "Price (Ugx)"
         cost_col = "Item Cost (Ugx)"
+
+        # Create a clean display copy of the DataFrame
         df_display = df.copy()
 
-        # Calculate operational item-level gross margin margins
+        # Safely calculate profit metric difference column
         if price_col in df_display.columns and cost_col in df_display.columns:
             num_price = pd.to_numeric(df_display[price_col], errors='coerce').fillna(0)
             num_cost = pd.to_numeric(df_display[cost_col], errors='coerce').fillna(0)
@@ -885,7 +891,7 @@ elif selection == "Price List":
         else:
             df_display["Net Profit (Ugx)"] = 0
 
-        # Build clean financial format schema layouts targeting numeric groups explicitly
+        # Build dynamic formatting configuration specifically for numeric types
         format_config = {
             price_col: "UGX {:,}",
             cost_col: "UGX {:,}",
@@ -893,17 +899,21 @@ elif selection == "Price List":
         }
         numeric_cols = [price_col, cost_col, "Net Profit (Ugx)"]
 
+        # Apply styling strictly targeted at the numeric subsets
         styled_df = (
             df_display.style
             .format(format_config, na_rep="-") 
             .set_properties(**{
-                'text-align': 'right'
+                'text-align': 'right'  # Right-align numeric blocks for clean financial look
             }, subset=numeric_cols)
         )
 
+        # Apply green background gradient map to Net Profit visibility rows
         if "Net Profit (Ugx)" in df_display.columns:
             styled_df = styled_df.background_gradient(subset=["Net Profit (Ugx)"], cmap="YlGn")
 
+        # 7. Render styled interactive dataframe layout
         st.dataframe(styled_df, use_container_width=True, hide_index=True)
     else:
-        st.warning("⚠️ No catalog or pricing rows found inside your database system.")
+        st.warning("⚠️ No active catalog records or rows found inside the database.")
+
