@@ -161,27 +161,27 @@ TRANSACTION_OPTIONS = ["--Select Transaction--", "Sales", "Credit Sales", "Purch
 # FIXED: Wrapped raw SQL multiline string explicitly using text()
 with conn.session as session:
     session.execute(text("""
-        CREATE TABLE IF NOT EXISTS Particulars_Prices (
-            particular_name VARCHAR(255) PRIMARY KEY,
-            price NUMERIC(15, 2) DEFAULT 0.0,
-            item_cost NUMERIC(15, 2) DEFAULT 0.0
-        );
+CREATE TABLE IF NOT EXISTS Particulars_Prices (
+      particular_name VARCHAR(255) PRIMARY KEY,
+      price NUMERIC(15, 2) DEFAULT 0.0,
+      item_cost NUMERIC(15, 2) DEFAULT 0.0
+ );
     """))
     session.execute(text("""
-        CREATE TABLE IF NOT EXISTS LNenterprise (
-            id SERIAL PRIMARY KEY,
-            date DATE,
-            business_name VARCHAR(255),
-            transaction_type VARCHAR(255),
-            particulars VARCHAR(255),
-            quantity INT,
-            unit_price NUMERIC(15, 2),
-            total_amount NUMERIC(15, 2),
-            customer_name VARCHAR(255),
-            contact_number VARCHAR(255),
-            notes TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
+CREATE TABLE IF NOT EXISTS LNenterprise (
+      id SERIAL PRIMARY KEY,
+      date DATE,
+      business_name VARCHAR(255),
+      transaction_type VARCHAR(255),
+      particulars VARCHAR(255),
+      quantity INT,
+      unit_price NUMERIC(15, 2),
+      total_amount NUMERIC(15, 2),
+      customer_name VARCHAR(255),
+      contact_number VARCHAR(255),
+      notes TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+   );
     """))
     session.commit()
 # Load mapping states out of relational tables 
