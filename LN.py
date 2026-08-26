@@ -1,10 +1,7 @@
-import gspread
+
 import pandas as pd
 import streamlit as st
 import datetime
-from google.oauth2.service_account import Credentials
-import time 
-import gspread
 import altair as alt
 
 # --- 0. INITIAL CONFIGURATION ---
@@ -142,72 +139,66 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# --- 1. INITIALIZE POSTGRESQL NATIVE CONNECTION ---
+try:
+    conn = st.connection("postgresql", type="sql")
+except Exception as e:
+    st.error("🔒 PostgreSQL Database Connection Failed. Please check your network credentials.")
+    st.exception(e)
+    st.stop()
 
-# Standard modern API scope list
-SCOPE = [
-    'https://googleapis.com',
-    'https://www.googleapis.com/auth/drive'
-]
+# Ensure mandatory editor tracking instance fields exist safely in session state
+if "editor_session_id" not in st.session_state:
+    st.session_state.editor_session_id = 0
+if "row_count" not in st.session_state:
+    st.session_state.row_count = 1
 
-# --- 2. SINGLE POINT INITIALIZATION FUNCTION ---
-@st.cache_resource
-def get_google_sheet_workbook(workbook_name):
-    """
-    Authenticates and opens a global persistent workbook connection reference.
-    Includes built-in network retries for unstable connections.
-    """
-    service_account_info = st.secrets["gcp_service_account"]
-    credentials = Credentials.from_service_account_info(
-        service_account_info, 
-        scopes=SCOPE
-    )
-    
-    # Attempt connection with up to 3 retries if the remote end disconnects
-    for attempt in range(3):
-        try:
-            gspread_client = gspread.authorize(credentials)
-            opened_workbook = gspread_client.open(workbook_name)
-            return gspread_client, opened_workbook   
-        except Exception as api_err:
-            if attempt < 2:  # If it's the 1st or 2nd fail, wait and try again
-                time.sleep(2)
-                continue
-            #st.error("🔒 Google API Authentication/Connection Failed. Please check your internet connection.")
-            #st.exception(api_err)
-            #st.stop()
+# Business Configuration Data fallbacks
+BUSINESS_NAME = ["--Select Name--", "Pauliz Enterprise", "P&J Venture"]
+TRANSACTION_OPTIONS = ["--Select Transaction--", "Sales", "Credit Sales", "Purchases", "Credit Purchases", "Expenses"]
 
-# --- 3. INSTANTIATE WORKBOOK AND WORKSHEETS ---
-client, sheet = get_google_sheet_workbook("Lnbuss")
-LNenterprise_sheet = sheet.worksheet("LNenterprise")
+# Create database tables cleanly if they do not exist
+with conn.session as session:
+    session.execute("""
+        CREATE TABLE IF NOT EXISTS Particulars_Prices (
+            particular_name VARCHAR(255) PRIMARY KEY,
+            price NUMERIC(15, 2) DEFAULT 0.0,
+            item_cost NUMERIC(15, 2) DEFAULT 0.0
+        );
+        CREATE TABLE IF NOT EXISTS LNenterprise (
+            id SERIAL PRIMARY KEY,
+            date DATE,
+            business_name VARCHAR(255),
+            transaction_type VARCHAR(255),
+            particulars VARCHAR(255),
+            quantity INT,
+            unit_price NUMERIC(15, 2),
+            total_amount NUMERIC(15, 2),
+            customer_name VARCHAR(255),
+            contact_number VARCHAR(255),
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+    session.commit()
 
-# --- 4. DYNAMIC DATA FETCHING (CACHED) ---
-@st.cache_data(ttl=600)  # Caches the parsed data list for 10 minutes
-def get_Particulars():
-    try:
-        Particulars_sheet = sheet.worksheet("Particulars")
-        records = Particulars_sheet.col_values(1)
-        
-        if records and str(records[0]).strip().lower() in ["particulars", "particular", "particulars list"]:
-            records = records[1:]
-        
-        cleaned_Particulars = [str(p).strip() for p in records if str(p).strip()]
-
-        if cleaned_Particulars:
-            return cleaned_Particulars
-            
-    except Exception as e:
-        st.error(f"Error fetching particulars: {e}") 
-    return ["General / Non-Particulars"]
-
+# Load mapping states out of relational tables 
+PARTICULARS_MAP = {}
+COST_MAP = {}
+df_prices = conn.query("SELECT particular_name, price, item_cost FROM Particulars_Prices;", ttl=0)
+if not df_prices.empty:
+    for _, row in df_prices.iterrows():
+        p_name = str(row["particular_name"]).strip()
+        if p_name:
+            PARTICULARS_MAP[p_name] = float(row["price"])
+            COST_MAP[p_name] = float(row["item_cost"])
 
 # --- SIDEBAR NAVIGATION ---
 st.sidebar.write(
-        '<p style="font-family: Consolas; color: #4e6291; font-size: 20px; font-weight: bold; text-align: Left; margin-bottom: 20px;">🎯 Pauliz P&J System</p>',
-        unsafe_allow_html=True,
-    )
-selection = st.sidebar.radio(
-    "Go to page:", ["Home","New Transaction Entry", "Price List"]
+    '<p style="font-family: Consolas; color: #4e6291; font-size: 20px; font-weight: bold; text-align: Left; margin-bottom: 20px;">🎯 Pauliz P&J System</p>',
+    unsafe_allow_html=True,
 )
+selection = st.sidebar.radio("Go to page:", ["Home", "New Transaction Entry", "Price List"])
 
 # Add a logout action cleanly inside the bottom of your sidebar panel
 st.sidebar.markdown("---")
@@ -223,73 +214,61 @@ if selection == "Home":
         unsafe_allow_html=True,
     )
 
-    # 1. Google Sheets Connection
+    # 1. FETCH FRESH DATA FROM POSTGRESQL (No caching ensures instant update visibility)
     try:
-        client, sheet = get_google_sheet_workbook("Lnbuss")
-        financial_sheet = sheet.worksheet("LNenterprise")
-        data = financial_sheet.get_all_records()
-        df = pd.DataFrame(data)
-    except NameError:
-         # FIXED: Restored valid Google OAuth endpoints for Sheets and Drive.
-        scope = [
-            'https://googleapis.com',
-            'https://googleapis.com'
-        ]
-        service_account_info = st.secrets["gcp_service_account"]
-        creds = Credentials.from_service_account_info(service_account_info, scopes=scope)
-        client = gspread.authorize(creds)
-        
-        sheet = client.open("Lnbuss")
-        financial_sheet = sheet.worksheet("LNenterprise")
-        data = financial_sheet.get_all_records()
-        df = pd.DataFrame(data)
+        query = """
+            SELECT id, date, business_name, transaction_type, particulars, quantity, unit_price, total_amount, notes 
+            FROM LNenterprise 
+            ORDER BY date DESC, id DESC;
+        """
+        df = conn.query(query, ttl=0)  
+    except Exception as db_err:
+        st.error(f"❌ Error retrieving records from PostgreSQL: {db_err}")
+        df = pd.DataFrame() 
 
-    # Clean date data types safely
-    if "Date" in df.columns:
-        df["Date"] = pd.to_datetime(df["Date"], errors='coerce')
-        valid_dates = df["Date"].dropna()
+    # Clean date data types safely using database lowercase labels
+    if not df.empty and "date" in df.columns:
+        df["date"] = pd.to_datetime(df["date"], errors='coerce')
+        valid_dates = df["date"].dropna()
     else:
         valid_dates = pd.Series()
 
-    # 1. Initialize session state keys safely
-    if "col_sel_key" not in st.session_state:
-        st.session_state.col_sel_key = "None"
+    # Define date bounds safely based on database structural metrics
+    default_start = valid_dates.min().date() if not valid_dates.empty else None
+    default_end = valid_dates.max().date() if not valid_dates.empty else None
 
-    # Optimized clear function using State Callback Pattern
+    # Initialize tracking infrastructure elements inside Session State
+    if "col_sel_key" not in st.session_state: st.session_state.col_sel_key = "None"
+    if "sec_col_select_key" not in st.session_state: st.session_state.sec_col_select_key = "None"
+    if "start_date_key" not in st.session_state: st.session_state.start_date_key = default_start
+    if "end_date_key" not in st.session_state: st.session_state.end_date_key = default_end
+
     def clear_all_filters():
-        # Reset standard inputs
         st.session_state.col_sel_key = "None" 
-        st.session_state.start_date_key = valid_dates.min().date() if not valid_dates.empty else None
-        st.session_state.end_date_key = valid_dates.max().date() if not valid_dates.empty else None
-    
-        # Flush out all dynamic multiselect states to avoid memory drift
+        st.session_state.sec_col_select_key = "None"
+        st.session_state.start_date_key = default_start
+        st.session_state.end_date_key = default_end
         for key in list(st.session_state.keys()):
-            if key.startswith("val_sel_key_"):
+            if key.startswith("val_sel_key_") or key.startswith("sec_val_key_"):
                 del st.session_state[key]
+
+    st.sidebar.button("🧹 Clear All Filters", on_click=clear_all_filters, use_container_width=True)
 
     # 2. Sidebar Configuration Layout
     st.sidebar.header("⏳ Date Options")
+    start_date = st.sidebar.date_input("Start Date", value=st.session_state.start_date_key, key="start_date_key")
+    end_date = st.sidebar.date_input("End Date", value=st.session_state.end_date_key, key="end_date_key")
 
-    start_date = st.sidebar.date_input(
-        "Start Date", 
-        value=valid_dates.min().date() if not valid_dates.empty else None,
-        key="start_date_key"
-    )
-
-    end_date = st.sidebar.date_input(
-        "End Date", 
-        value=valid_dates.max().date() if not valid_dates.empty else None,
-        key="end_date_key"
-    )
+    # Filter dataset by chosen dates
+    filtered_df = df.copy()
+    if not filtered_df.empty and "date" in filtered_df.columns and start_date and end_date:
+        filtered_df = filtered_df[(filtered_df["date"].dt.date >= start_date) & (filtered_df["date"].dt.date <= end_date)]
 
     st.sidebar.markdown("---")
     st.sidebar.header("Filter by Record Type")
 
-    # Copy the DataFrame to keep operations isolated
-    filtered_df = df.copy()
-
-    # Exclude Date column from being picked as a text filter
-    ignore_cols = ["Date"]
+    # Columns excluded from acting as filter categories
+    ignore_cols = ["id", "date", "quantity", "unit_price", "total_amount", "notes"]
     available_filter_columns = [col for col in filtered_df.columns if col not in ignore_cols]
 
     selected_column = st.sidebar.selectbox(
@@ -298,49 +277,36 @@ if selection == "Home":
         key="col_sel_key"
     )
 
-        # --- PRIMARY LEVEL FILTER ---
+    # --- PRIMARY LEVEL FILTER ---
     selected_values = []
-    if selected_column != "None":
-        unique_values = filtered_df[selected_column].astype(str).str.strip().unique()
-        unique_values = [v for v in unique_values if v != ""]
-        unique_values.sort()
-    
+    if selected_column != "None" and not filtered_df.empty:
+        unique_values = sorted([v for v in filtered_df[selected_column].astype(str).str.strip().unique() if v != ""])
         selected_values = st.sidebar.multiselect(
             f"Select Values for {selected_column}",
             options=unique_values,
             key=f"val_sel_key_{selected_column}"
         )
-
-        # Apply primary filter if values are selected
         if selected_values:
             filtered_df = filtered_df[filtered_df[selected_column].astype(str).str.strip().isin(selected_values)]
 
     # --- SECONDARY LEVEL FILTER ---
     secondary_values = []
-    if selected_column != "None":
-        st.sidebar.markdown("---") # Visual divider in sidebar
-        
-        # 1. Let the user choose a different column for the second level
-        available_secondary_cols = ["None"] + [col for col in filtered_df.columns if col != selected_column]
+    if selected_column != "None" and not filtered_df.empty:
+        st.sidebar.markdown("---") 
+        available_secondary_cols = ["None"] + [col for col in filtered_df.columns if col not in [selected_column] + ignore_cols]
         secondary_column = st.sidebar.selectbox(
             "Select Secondary Filter Column",
             options=available_secondary_cols,
             key="sec_col_select_key"
         )
         
-        # 2. Populate secondary options based on the already-filtered data scope
         if secondary_column != "None":
-            sec_unique_values = filtered_df[secondary_column].astype(str).str.strip().unique()
-            sec_unique_values = [v for v in sec_unique_values if v != ""]
-            sec_unique_values.sort()
-            
+            sec_unique_values = sorted([v for v in filtered_df[secondary_column].astype(str).str.strip().unique() if v != ""])
             secondary_values = st.sidebar.multiselect(
                 f"Select Values for {secondary_column}",
                 options=sec_unique_values,
                 key=f"sec_val_key_{secondary_column}"
             )
-            
-            # Apply secondary filter if values are selected
             if secondary_values:
                 filtered_df = filtered_df[filtered_df[secondary_column].astype(str).str.strip().isin(secondary_values)]
 
@@ -649,13 +615,16 @@ if selection == "Home":
     )
 # --- INVENTORY SECTION END ---
 
-# --- PAGE 2: CAPTURE A TRANSACTION ---
+
+# --- PAGE ROUTER: NEW TRANSACTION ENTRY ---
 elif selection == "New Transaction Entry":
+    available_items = ["--Select Item--"] + sorted(list(PARTICULARS_MAP.keys()))
+
     st.write(
-        '<p style="font-family: Consolas; color: #4e6291; font-size: 15px; font-weight: bold; text-align: Left; margin-bottom: 20px;">Record Sales, Purchases, Expenses and stock</p>',
-        unsafe_allow_html=True,
-    )
-    # --- MOBILE OPTIMIZATION: Inject CSS to force smooth mobile scrolling & clean column widths ---
+            '<p style="font-family: Consolas; color: #4e6291; font-size: 15px; font-weight: bold; text-align: Left; margin-bottom: 20px;">Record Sales, Purchases, Expenses and stock</p>',
+            unsafe_allow_html=True,
+        )
+        # --- MOBILE OPTIMIZATION: Inject CSS to force smooth mobile scrolling & clean column widths ---
     st.html(
         """
         <style>
@@ -671,149 +640,15 @@ elif selection == "New Transaction Entry":
         </style>
         """
     )
-    # --- 0. INITIALIZATION & SESSION STATES ---
-    if "last_saved_summary" not in st.session_state:
-        st.session_state.last_saved_summary = None
-    if "row_count" not in st.session_state:
-        st.session_state.row_count = 1
-    if "editor_session_id" not in st.session_state:
-        st.session_state.editor_session_id = 0
-
-    BUSINESS_NAME = ["--Select Name--", "Pauliz pub", "Pauliz Joint"]
-    TRANSACTION_OPTIONS = [
-        "--Select Transaction--",
-        "Sales",
-        "Purchases",
-        "Expenses",
-        "Credit Sales",
-        "Credit Purchases",
-        "Debt settlement business",
-        "Debt settlement creditor",
-    ]
-
-    PARTICULARS_MAP = {}
-
-    st.sidebar.subheader("⚙️ Inventory & Price Manager")
-    st.sidebar.caption("Manage items in your Particulars_Prices tab.")
-
-    try:
-        spreadsheet = client.open("Lnbuss")
-        try:
-            lookup_worksheet = spreadsheet.worksheet("Particulars&Prices")
-        except Exception:
-            lookup_worksheet = spreadsheet.add_worksheet(title="Particulars&Prices", rows=100, cols=2)
-            lookup_worksheet.append_row(["Particulars", "Price"])
-    
-        raw_lookup_data = lookup_worksheet.get_all_records()
-
-        if raw_lookup_data:
-            PARTICULARS_MAP = {
-                str(row["Particulars"]).strip(): float(row["Price"])
-                for row in raw_lookup_data
-                if str(row.get("Particulars", "")).strip() != ""
-            }
-    except Exception as e:
-        st.sidebar.error(f"Could not connect to 'Particulars&Prices' tab: {str(e)}")
-
-    # --- SIDEBAR CRUD ACTIONS ---
-    sidebar_tab1, sidebar_tab2 = st.sidebar.tabs(["➕ Add/Edit Item", "🗑️ Delete Item"])
-
-    with sidebar_tab1:
-        # 1. Fetch existing items for the dropdown outside the form
-        try:
-            raw_rows = lookup_worksheet.get_all_values()
-            existing_items = [row[0].strip() for row in raw_rows[1:] if row]
-        except Exception:
-            raw_rows = []
-            existing_items = []
-
-        # 2. Setup options and selection OUTSIDE the form for dynamic reactivity
-        options = ["-- Select Existing Item --", "➕ Add New Item..."] + sorted(list(set(existing_items)))
-        selected_option = st.selectbox("Particular Name", options, key="sidebar_select_particular")
-
-        # 3. Conditionally show text input dynamically
-        input_particular = ""
-        if selected_option == "➕ Add New Item...":
-            input_particular = st.text_input("Enter New Particular Name (e.g. Wine)", key="sidebar_new_particular").strip()
-        elif selected_option != "-- Select Existing Item --":
-            input_particular = selected_option
-
-        # 4. Form for submission data
-        with st.form("add_edit_form", clear_on_submit=True):
-            input_price = st.number_input("Price (Ugx)", min_value=0, step=500, value=0)
-            # NEW: Added Item Cost input field
-            input_cost = st.number_input("Item Cost (Ugx)", min_value=0, step=500, value=0, help="Internal acquisition/production cost.")
-            
-            submit_item = st.form_submit_button("Save Item to Sheet")
-
-            if submit_item:
-                if not input_particular:
-                    st.toast("⚠️ Please select or enter a valid Particular Name.")
-                else:
-                    try:
-                        item_found = False
-                        for r_idx, row_values in enumerate(raw_rows):
-                            if r_idx == 0:
-                                continue
-                            if row_values and row_values[0].strip().lower() == input_particular.lower():
-                                # Updates Column 2 (Price)
-                                lookup_worksheet.update_cell(r_idx + 1, 2, input_price)
-                                # NEW: Updates Column 3 (Item Cost) for existing rows
-                                lookup_worksheet.update_cell(r_idx + 1, 3, input_cost)
-                                item_found = True
-                                break
-
-                        if not item_found:
-                            # NEW: Appends row with three elements [Particular, Price, Item Cost]
-                            lookup_worksheet.append_row([input_particular, input_price, input_cost])
-
-                        if input_price == 0:
-                            st.toast(f"⚠️ Saved '{input_particular}' with a 0 Ugx price.")
-                        else:
-                            st.toast(f"✅ Saved '{input_particular}' successfully!")
-
-                        st.rerun()
-                    except Exception as ex:
-                        st.toast(f"❌ Error: {str(ex)}")
-
-    with sidebar_tab2:
-        if PARTICULARS_MAP:
-            sorted_delete_items = sorted(list(PARTICULARS_MAP.keys()))
-            item_to_delete = st.selectbox("Select Item to Remove", sorted_delete_items, key="sidebar_delete_select")
-            if st.button("Delete Selected Item", type="primary"):
-                try:
-                    raw_rows = lookup_worksheet.get_all_values()
-                    for r_idx, row_values in enumerate(raw_rows):
-                        if r_idx == 0: 
-                            continue
-                        if row_values and row_values[0].strip() == item_to_delete:
-                            lookup_worksheet.delete_rows(r_idx + 1)
-                            st.toast(f"🗑️ Deleted '{item_to_delete}' from Sheet!")
-                            st.rerun()
-                            break
-                except Exception as ex:
-                    st.toast(f"❌ Error deleting item: {str(ex)}")
-        else:
-            st.caption("No items available to remove.")
-
-    available_items = ["--Select Item--"] + sorted(list(PARTICULARS_MAP.keys()))
 
     # --- 1. BATCH CONFIGURATION LINE ---
     col_d1, col_d2, col_d3 = st.columns(3)
     with col_d1:
         tx_date = st.date_input("Transaction Date", datetime.date.today())
     with col_d2:
-        business_name_sel = st.selectbox(
-            "Business Name", 
-            BUSINESS_NAME, 
-            key=f"bs_name_{st.session_state.editor_session_id}"
-        )
+        business_name_sel = st.selectbox("Business Name", BUSINESS_NAME, key=f"bs_name_{st.session_state.editor_session_id}")
     with col_d3:
-        global_tx_type = st.selectbox(
-            "Transaction Type", 
-            TRANSACTION_OPTIONS, 
-            key=f"tx_type_{st.session_state.editor_session_id}"
-        )
+        global_tx_type = st.selectbox("Transaction Type", TRANSACTION_OPTIONS, key=f"tx_type_{st.session_state.editor_session_id}")
 
     # DETERMINE DYNAMIC TRANSACTION STATUS TRACKER TAG VALUE
     if global_tx_type in ["Credit Sales", "Credit Purchases"]:
@@ -838,67 +673,53 @@ elif selection == "New Transaction Entry":
     rows_data = []
     live_total_amount = 0.0
 
-    # Ensure row_count always exists safely
-    if "row_count" not in st.session_state:
-        st.session_state.row_count = 1
-
     # --- 2. DYNAMIC INPUT ROWS SYSTEM ---
     for i in range(st.session_state.row_count):
         c1, c2, c3, c4, c5 = st.columns([2.5, 1.2, 2.0, 2.0, 3.0])
-    
-        # Generate unique scope keys tied strictly to the editor instance ID
+
         current_session_prefix = st.session_state.editor_session_id
         part_key = f"part_{current_session_prefix}_{i}"
         qty_key = f"qty_{current_session_prefix}_{i}"
         price_key = f"price_{current_session_prefix}_{i}"
         notes_key = f"notes_{current_session_prefix}_{i}"
 
-        # Callback tracking logic function to update auto-pricing when item choices change
         def on_particular_change(row_index=i, pk=part_key, prk=price_key):
-            current_selection = st.session_state[pk]
-            if prk in st.session_state:
-                sheet_price = PARTICULARS_MAP.get(current_selection, 0.0)
-                st.session_state[prk] = int(sheet_price)
+            current_selection = st.session_state.get(pk, "--Select Item--")
+            if current_selection != "--Select Item--" and prk in st.session_state:
+                st.session_state[prk] = int(PARTICULARS_MAP.get(current_selection, 0.0))
 
         with c1:
-            part_sel = st.selectbox(
-                f"Particulars Row {i}", available_items, key=part_key, 
-                label_visibility="collapsed", on_change=on_particular_change
-            )
-
+            part_sel = st.selectbox(f"Particulars Row {i}", available_items, key=part_key, label_visibility="collapsed", on_change=on_particular_change)
         with c2:
-            qty_input = st.number_input(
-                f"Qty Row {i}", min_value=1, step=1, value=1, key=qty_key, label_visibility="collapsed"
-            )
+            qty_input = st.number_input(f"Qty Row {i}", min_value=1, step=1, value=1, key=qty_key, label_visibility="collapsed")
+
+        if price_key not in st.session_state:
+            st.session_state[price_key] = int(PARTICULARS_MAP.get(part_sel, 0) if part_sel != "--Select Item--" else 0)
 
         with c3:
-            base_catalog_price = PARTICULARS_MAP.get(part_sel, 0.0) if part_sel != "--Select Item--" else 0.0
-        
-            if price_key not in st.session_state:
-                st.session_state[price_key] = int(base_catalog_price)
-                
-            price_input = st.number_input(
-                f"Price Row {i}", min_value=0, step=500, key=price_key, label_visibility="collapsed"
-            )
+            price_input = st.number_input(f"Price Row {i}", min_value=0, step=500, key=price_key, label_visibility="collapsed")
 
-        row_subtotal = qty_input * price_input
+        row_subtotal = float(qty_input * price_input)
         live_total_amount += row_subtotal
 
         with c4:
-            st.markdown(f"Ugx {int(row_subtotal):,}")
-
+            st.markdown(f"<div style='padding-top: 5px;'>Ugx {row_subtotal:,.0f}</div>", unsafe_allow_html=True)
         with c5:
-            notes_input = st.text_input(
-                f"Notes Row {i}", placeholder="Optional row entries notes", key=notes_key, label_visibility="collapsed"
-            )
+            notes_input = st.text_input(f"Notes Row {i}", key=notes_key, label_visibility="collapsed", placeholder="Add dynamic remarks...")
 
-        rows_data.append({
-            "Particulars": part_sel,
-            "Quantity": qty_input,
-            "Price": price_input,
-            "Subtotal": row_subtotal,
-            "Notes": notes_input
-        })
+        if part_sel != "--Select Item--":
+            rows_data.append({
+                "particular": part_sel,
+                "qty": qty_input,
+                "unit_price": price_input,
+                "subtotal": row_subtotal,
+                "cost": COST_MAP.get(part_sel, 0.0) * qty_input,
+                "notes": notes_input
+            })
+
+    # Show summary running metrics panel
+    st.markdown("---")
+    st.metric(label="Total Transaction Basket Value", value=f"Ugx {live_total_amount:,.0f}")
 
     # Row layout alteration elements
     col_btn1, col_btn2, _ = st.columns([1.5, 1.5, 5])
@@ -927,76 +748,74 @@ elif selection == "New Transaction Entry":
     with col_m2:
         st.metric(label="Total Transaction Amount", value=f"Ugx {int(display_amount):,}")
 
-    # --- 4 & 5. SUBMIT & POST TO GOOGLE SHEETS PIPELINE ---   
+    # --- 4 & 5. SUBMIT & POST TO POSTGRESQL PIPELINE ---   
     if st.button("Save All Transactions", type="primary"):
         if business_name_sel == "--Select Name--":
             st.error("❌ Please select a valid Business Name at the top dropdown before saving.")
         elif global_tx_type == "--Select Transaction--":
             st.error("❌ Please select a valid Transaction Type at the top dropdown.")
+        elif len(rows_data) == 0:
+            st.error("❌ Please input data details before attempting to save.")
         else:
             has_errors = False
-            rows_to_append = []
             summary_rows_markdown = []
-            current_ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-            # 1. FIRST PASS: Validate all data rows before making any changes
+            # 1. VALIDATION LOOP
             for idx, row in enumerate(rows_data):
-                item_part = row["Particulars"]
-
-                if item_part == "--Select Item--":
+                if row["particular"] == "--Select Item--":
                     st.error(f"❌ Row {idx+1}: Please select a valid product inside the dropdown menu.")
                     has_errors = True
                     break
-                        
-                price = float(row["Price"])
-                qty = int(row["Quantity"])
-
-                if price <= 0:
-                    st.error(f"❌ Row {idx+1}: Price must be greater than 0 Ugx for chosen item: '{item_part}'")
+                if row["unit_price"] <= 0:
+                    st.error(f"❌ Row {idx+1}: Price must be greater than 0 Ugx for chosen item: '{row['particular']}'")
                     has_errors = True
                     break
 
-            # 2. SECOND PASS: Only construct the sheet payload if no validation errors exist
+            # 2. WRITE DATA TRANSACTION BLOCK
             if not has_errors:
-                for row in rows_data:
-                    item_part = row["Particulars"]
-                    price = float(row["Price"])
-                    qty = int(row["Quantity"])
-                    desc = row["Notes"].strip()
-
-                    if is_negative_type:
-                        final_price = -abs(price)
-                    else:
-                        final_price = abs(price)
-                
-                    amount = float(qty * final_price)
-
-                    # Google Sheets Column Mapping Array
-                    rows_to_append.append([
-                        tx_date.strftime("%Y-%m-%d"),       # Col A: Date
-                        business_name_sel,                  # Col B: Business Name
-                        global_tx_type,                     # Col C: Transaction Type
-                        item_part,                          # Col D: Particulars
-                        qty,                                # Col E: Quantity
-                        final_price,                        # Col F: Unit Price
-                        amount,                             # Col G: Total Amount
-                        "Optional",                         # Col H: Customer Name
-                        "",                                 # Col I: Contact Number Placeholder
-                        desc if desc else "No notes",       # Col J: Notes
-                        current_ts,                         # Col K: Timestamp
-                    ])
-
-                    # Markdown table string assembly
-                    summary_rows_markdown.append(
-                        f"| {item_part} | {qty} | Ugx {int(price):,} | Ugx {int(abs(amount)):,} | *None* | {desc if desc else '*No notes*'} |"
-                    )
-
-            # 3. WRITE DATA, RESET COLUMNS, AND DISPLAY RECEIPT
-            if not has_errors and len(rows_to_append) > 0:
-                with st.spinner("⏳ Safely writing batch to Google Sheets..."):
+                with st.spinner("⏳ Safely writing batch to PostgreSQL Database..."):
                     try:
-                        enterprise_worksheet = spreadsheet.worksheet("LNenterprise")
-                        enterprise_worksheet.append_rows(rows_to_append)
+                        with conn.session as session:
+                            for row in rows_data:
+                                item_part = row["particular"]
+                                price = float(row["unit_price"])
+                                qty = int(row["qty"])
+                                desc = row["notes"].strip()
+                                
+                                final_price = -abs(price) if is_negative_type else abs(price)
+                                amount = float(qty * final_price)
+
+                                # FIXED: Passed the execution dictionary maps directly into the binding engine
+                                session.execute(
+                                    """
+                                    INSERT INTO LNenterprise (
+                                        date, business_name, transaction_type, particulars, 
+                                        quantity, unit_price, total_amount, customer_name, 
+                                        contact_number, notes
+                                    ) VALUES (
+                                        :date, :business_name, :transaction_type, :particulars, 
+                                        :quantity, :unit_price, :total_amount, :customer_name, 
+                                        :contact_number, :notes
+                                    );
+                                    """,
+                                    {
+                                        "date": tx_date,
+                                        "business_name": business_name_sel,
+                                        "transaction_type": global_tx_type,
+                                        "particulars": item_part,
+                                        "quantity": qty,
+                                        "unit_price": final_price,
+                                        "total_amount": amount,
+                                        "customer_name": "Optional",
+                                        "contact_number": "",
+                                        "notes": desc if desc else "No notes"
+                                    }
+                                )
+                                
+                                summary_rows_markdown.append(
+                                    f"| {item_part} | {qty} | Ugx {int(price):,} | Ugx {int(abs(amount)):,} | *None* | {desc if desc else '*No notes*'} |"
+                                )
+                            session.commit()
                     
                         markdown_table = (
                             f"### 📋 Pauliz P&J Receipt\n"
@@ -1016,7 +835,8 @@ elif selection == "New Transaction Entry":
                     except Exception as e:
                         st.error(f"❌ Transaction aborted due to a connection issue: {str(e)}")
 
-            elif len(rows_to_append) == 0 and not has_errors:
+            # FIXED: Reference changed from missing rows_to_append to active rows_data list
+            elif len(rows_data) == 0 and not has_errors:
                 st.error("❌ Please input data details before attempting to save.")
 
     # --- 6. RECEIPT PREVIEW & DISPLAY (AT THE TOP) ---
@@ -1028,80 +848,62 @@ elif selection == "New Transaction Entry":
                 st.session_state.last_saved_summary = None
                 st.rerun()
 
-# --- PAGE 2: Particular List ---       
+# --- PAGE 2: Price List ---       
 elif selection == "Price List":
     st.write(
         '<p style="font-family: Consolas; color: #4e6291; font-size: 15px; font-weight: bold; text-align: Left; margin-bottom: 20px;">Review the Prices and costs of each Item/good</p>',
         unsafe_allow_html=True,
     )
-    # 1. Google Sheets Connection
+    
+    # FIXED: Replaced Google Sheets extraction hooks with highly fast, concurrent secure SQL Select lookups
     try:
-        client, sheet = get_google_sheet_workbook("Lnbuss")
-        financial_sheet = sheet.worksheet("Particulars&Prices")
-        data = financial_sheet.get_all_records()
-        df = pd.DataFrame(data)
-    except NameError:
-        # FIXED: Corrected OAuth scopes to valid Google API endpoints
-        scope = [
-            'https://googleapis.com',
-            'https://googleapis.com'
-        ]
-        service_account_info = st.secrets["gcp_service_account"]
-        creds = Credentials.from_service_account_info(service_account_info, scopes=scope)
-        client = gspread.authorize(creds)
-        
-        sheet = client.open("NeDin")
-        financial_sheet = sheet.worksheet("Particulars&Prices")
-        data = financial_sheet.get_all_records()
-        df = pd.DataFrame(data)
-    # 2. Render Data
+        query_catalog = """
+            SELECT 
+                particular_name AS "Particulars", 
+                price AS "Price (Ugx)", 
+                item_cost AS "Item Cost (Ugx)" 
+            FROM Particulars_Prices;
+        """
+        df = conn.query(query_catalog, ttl=0)
+    except Exception as db_err:
+        st.error(f"❌ Failed to fetch catalog data sets from PostgreSQL: {db_err}")
+        df = pd.DataFrame()
+
+    # 2. Render Data Layout Elements
     if not df.empty:
-        # 1. Clean up column whitespace from Google Sheets
         df.columns = df.columns.str.strip()
 
-        # 2. Match exact column names dynamically
-        price_col = "Price" if "Price" in df.columns else ("Price (Ugx)" if "Price (Ugx)" in df.columns else None)
-        cost_col = "Item Cost" if "Item Cost" in df.columns else ("Item Cost (Ugx)" if "Item Cost (Ugx)" in df.columns else None)
-
-        # 3. Create a clean display copy of the DataFrame
+        price_col = "Price (Ugx)"
+        cost_col = "Item Cost (Ugx)"
         df_display = df.copy()
 
-        # 4. Safely calculate Profit if both columns are found
-        if price_col and cost_col:
+        # Calculate operational item-level gross margin margins
+        if price_col in df_display.columns and cost_col in df_display.columns:
             num_price = pd.to_numeric(df_display[price_col], errors='coerce').fillna(0)
             num_cost = pd.to_numeric(df_display[cost_col], errors='coerce').fillna(0)
-            df_display["Net Profit"] = num_price - num_cost
+            df_display["Net Profit (Ugx)"] = num_price - num_cost
         else:
-            df_display["Net Profit"] = 0
+            df_display["Net Profit (Ugx)"] = 0
 
-        # 5. Build dynamic formatting configuration specifically for numeric types
-        format_config = {}
-        numeric_cols = []
+        # Build clean financial format schema layouts targeting numeric groups explicitly
+        format_config = {
+            price_col: "UGX {:,}",
+            cost_col: "UGX {:,}",
+            "Net Profit (Ugx)": "UGX {:,}"
+        }
+        numeric_cols = [price_col, cost_col, "Net Profit (Ugx)"]
 
-        if price_col:
-            format_config[price_col] = "UGX {:,}"
-            numeric_cols.append(price_col)
-        if cost_col:
-            format_config[cost_col] = "UGX {:,}"
-            numeric_cols.append(cost_col)
-        if "Net Profit" in df_display.columns:
-            format_config["Net Profit"] = "UGX {:,}"
-            numeric_cols.append("Net Profit")
-
-        # 6. Apply styling strictly targeted at the numeric subsets
         styled_df = (
             df_display.style
             .format(format_config, na_rep="-") 
             .set_properties(**{
-                'text-align': 'right'  # Standard corporate look: numbers right-aligned
+                'text-align': 'right'
             }, subset=numeric_cols)
         )
 
-        # Only apply the green background gradient to the Net Profit column if it exists
-        if "Net Profit" in df_display.columns:
-            styled_df = styled_df.background_gradient(subset=["Net Profit"], cmap="YlGn")
+        if "Net Profit (Ugx)" in df_display.columns:
+            styled_df = styled_df.background_gradient(subset=["Net Profit (Ugx)"], cmap="YlGn")
 
-        # 7. Render table safely
         st.dataframe(styled_df, use_container_width=True, hide_index=True)
     else:
-        st.warning("No data found in the spreadsheet.")
+        st.warning("⚠️ No catalog or pricing rows found inside your database system.")
