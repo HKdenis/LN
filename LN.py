@@ -1,8 +1,7 @@
-
+import datetime
 from sqlalchemy import text
 import pandas as pd
 import streamlit as st
-import datetime
 import altair as alt
 
 # --- 0. INITIAL CONFIGURATION ---
@@ -70,7 +69,6 @@ def login():
     col1, col2, col3 = st.columns([1, 1.4, 1])
     with col2:
         with st.form("login_form", clear_on_submit=False):
-            # 1. Added a unique 'key' to the text input
             password_input = st.text_input(
                 "Enter system Password", 
                 type="password", 
@@ -81,13 +79,11 @@ def login():
             submit_button = st.form_submit_button("Verify password and Login", use_container_width=False)
     
             if submit_button:
-                # Secure lookup from the passwords section
                 system_password = st.secrets.get("passwords", {}).get("nedin")
         
                 if system_password and password_input == system_password:
                     st.session_state.logged_in = True
                 
-                    # 2. Clear the password text field from session state
                     if "password_field" in st.session_state:
                         del st.session_state["password_field"]
                 
@@ -99,12 +95,11 @@ def login():
 # Run Login Guard logic check block 
 if not st.session_state.logged_in:
     login()
-    st.stop() # Stops execution here so unauthenticated users see absolutely nothing else below
+    st.stop() 
 
 # --- 1. APP WORKSPACE CUSTOM GLOBAL STYLING ---
 st.markdown("""
     <style>
-    /* Base Editor Wrapper: Adds card styling and smooth glow on interaction */
     div[data-testid="stDataEditor"] {
         background-color: #ffffff;
         border: 2px solid #e2e8f0;
@@ -113,15 +108,11 @@ st.markdown("""
         padding: 6px;
         transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     }
-    
-    /* Focused Interaction: Changes border color to your brand signature color when editing */
     div[data-testid="stDataEditor"]:focus-within,
     div[data-testid="stDataEditor"]:hover {
         border-color: #ff4b4b;
         box-shadow: 0 10px 15px -3px rgba(255, 75, 75, 0.08), 0 4px 6px -2px rgba(255, 75, 75, 0.04);
     }
-
-    /* Toolbar and Add Row Action Button Customization */
     div[data-testid="stDataEditor"] button {
         border-radius: 6px !important;
         transition: all 0.2s ease !important;
@@ -130,8 +121,6 @@ st.markdown("""
         background-color: #fff5f5 !important;
         color: #ff4b4b !important;
     }
-
-    /* Streamlit Metric Cards Cohesiveness Layout */
     div[data-testid="stMetricValue"] {
         font-family: 'Segoe UI Mono', monospace !important;
         font-weight: 700 !important;
@@ -140,7 +129,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 1. INITIALIZE POSTGRESQL NATIVE CONNECTION ---
+# --- 2. INITIALIZE POSTGRESQL NATIVE CONNECTION ---
 try:
     conn = st.connection("postgresql", type="sql")
 except Exception as e:
@@ -158,32 +147,33 @@ if "row_count" not in st.session_state:
 BUSINESS_NAME = ["--Select Name--", "Pauliz Enterprise", "P&J Venture"]
 TRANSACTION_OPTIONS = ["--Select Transaction--", "Sales", "Credit Sales", "Purchases", "Credit Purchases", "Expenses"]
 
-# FIXED: Wrapped raw SQL multiline string explicitly using text()
+# Ensure tables are built with absolute flat indentation levels to escape compilation errors
 with conn.session as session:
     session.execute(text("""
 CREATE TABLE IF NOT EXISTS Particulars_Prices (
-      particular_name VARCHAR(255) PRIMARY KEY,
-      price NUMERIC(15, 2) DEFAULT 0.0,
-      item_cost NUMERIC(15, 2) DEFAULT 0.0
- );
+    particular_name VARCHAR(255) PRIMARY KEY,
+    price NUMERIC(15, 2) DEFAULT 0.0,
+    item_cost NUMERIC(15, 2) DEFAULT 0.0
+);
     """))
     session.execute(text("""
 CREATE TABLE IF NOT EXISTS LNenterprise (
-      id SERIAL PRIMARY KEY,
-      date DATE,
-      business_name VARCHAR(255),
-      transaction_type VARCHAR(255),
-      particulars VARCHAR(255),
-      quantity INT,
-      unit_price NUMERIC(15, 2),
-      total_amount NUMERIC(15, 2),
-      customer_name VARCHAR(255),
-      contact_number VARCHAR(255),
-      notes TEXT,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-   );
+    id SERIAL PRIMARY KEY,
+    date DATE,
+    business_name VARCHAR(255),
+    transaction_type VARCHAR(255),
+    particulars VARCHAR(255),
+    quantity INT,
+    unit_price NUMERIC(15, 2),
+    total_amount NUMERIC(15, 2),
+    customer_name VARCHAR(255),
+    contact_number VARCHAR(255),
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
     """))
     session.commit()
+
 # Load mapping states out of relational tables 
 PARTICULARS_MAP = {}
 COST_MAP = {}
@@ -210,36 +200,32 @@ if st.sidebar.button("🚪 Log Out the System Account", use_container_width=Fals
 
 # --- MAIN PAGE ROUTING CONTENT ---
 st.subheader(f"📍 {selection}")
+
+# ==========================================
+# PAGE ROUTER: HOME
+# ==========================================
 if selection == "Home":
     st.write(
         '<p style="font-family: Consolas; color: #4e6291; font-size: 15px; font-weight: bold; text-align: Left; margin-bottom: 20px;">Navigate Core business Updates</p>',
         unsafe_allow_html=True,
     )
 
-    # 1. FETCH FRESH DATA FROM POSTGRESQL (No caching ensures instant update visibility)
     try:
-        query = """
-            SELECT id, date, business_name, transaction_type, particulars, quantity, unit_price, total_amount, notes 
-            FROM LNenterprise 
-            ORDER BY date DESC, id DESC;
-        """
+        query = "SELECT id, date, business_name, transaction_type, particulars, quantity, unit_price, total_amount, notes FROM LNenterprise ORDER BY date DESC, id DESC;"
         df = conn.query(query, ttl=0)  
     except Exception as db_err:
         st.error(f"❌ Error retrieving records from PostgreSQL: {db_err}")
         df = pd.DataFrame() 
 
-    # Clean date data types safely using database lowercase labels
     if not df.empty and "date" in df.columns:
         df["date"] = pd.to_datetime(df["date"], errors='coerce')
         valid_dates = df["date"].dropna()
     else:
         valid_dates = pd.Series()
 
-    # Define date bounds safely based on database structural metrics
     default_start = valid_dates.min().date() if not valid_dates.empty else None
     default_end = valid_dates.max().date() if not valid_dates.empty else None
 
-    # Initialize tracking infrastructure elements inside Session State
     if "col_sel_key" not in st.session_state: st.session_state.col_sel_key = "None"
     if "sec_col_select_key" not in st.session_state: st.session_state.sec_col_select_key = "None"
     if "start_date_key" not in st.session_state: st.session_state.start_date_key = default_start
@@ -256,12 +242,10 @@ if selection == "Home":
 
     st.sidebar.button("🧹 Clear All Filters", on_click=clear_all_filters, use_container_width=True)
 
-    # 2. Sidebar Configuration Layout
     st.sidebar.header("⏳ Date Options")
     start_date = st.sidebar.date_input("Start Date", value=st.session_state.start_date_key, key="start_date_key")
     end_date = st.sidebar.date_input("End Date", value=st.session_state.end_date_key, key="end_date_key")
 
-    # Filter dataset by chosen dates
     filtered_df = df.copy()
     if not filtered_df.empty and "date" in filtered_df.columns and start_date and end_date:
         filtered_df = filtered_df[(filtered_df["date"].dt.date >= start_date) & (filtered_df["date"].dt.date <= end_date)]
@@ -269,7 +253,6 @@ if selection == "Home":
     st.sidebar.markdown("---")
     st.sidebar.header("Filter by Record Type")
 
-    # Columns excluded from acting as filter categories
     ignore_cols = ["id", "date", "quantity", "unit_price", "total_amount", "notes"]
     available_filter_columns = [col for col in filtered_df.columns if col not in ignore_cols]
 
