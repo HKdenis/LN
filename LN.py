@@ -789,14 +789,12 @@ elif selection == "New Transaction Entry":
 
                                 # FIXED: Passed the execution dictionary maps directly into the binding engine
                                 session.execute(
-                                # Fixed Form Insertion Example:
-                                session.execute(
                                     text("""
-                                        INSERT INTO LNenterprise (
+                                     INSERT INTO LNenterprise (
                                         date, business_name, transaction_type, particulars, 
                                         quantity, unit_price, total_amount, customer_name, 
                                         contact_number, notes
-                                   ) VALUES (
+                                     ) VALUES (
                                         :date, :business_name, :transaction_type, :particulars, 
                                         :quantity, :unit_price, :total_amount, :customer_name, 
                                         :contact_number, :notes
