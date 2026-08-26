@@ -158,14 +158,16 @@ if "row_count" not in st.session_state:
 BUSINESS_NAME = ["--Select Name--", "Pauliz Enterprise", "P&J Venture"]
 TRANSACTION_OPTIONS = ["--Select Transaction--", "Sales", "Credit Sales", "Purchases", "Credit Purchases", "Expenses"]
 
-# Create database tables cleanly if they do not exist
+# FIXED: Wrapped raw SQL multiline string explicitly using text()
 with conn.session as session:
-    session.execute("""
+    session.execute(text("""
         CREATE TABLE IF NOT EXISTS Particulars_Prices (
             particular_name VARCHAR(255) PRIMARY KEY,
             price NUMERIC(15, 2) DEFAULT 0.0,
             item_cost NUMERIC(15, 2) DEFAULT 0.0
         );
+    """))
+    session.execute(text("""
         CREATE TABLE IF NOT EXISTS LNenterprise (
             id SERIAL PRIMARY KEY,
             date DATE,
@@ -173,6 +175,15 @@ with conn.session as session:
             transaction_type VARCHAR(255),
             particulars VARCHAR(255),
             quantity INT,
+            unit_price NUMERIC(15, 2),
+            total_amount NUMERIC(15, 2),
+            customer_name VARCHAR(255),
+            contact_number VARCHAR(255),
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """))
+    session.commit()
             unit_price NUMERIC(15, 2),
             total_amount NUMERIC(15, 2),
             customer_name VARCHAR(255),
@@ -788,31 +799,33 @@ elif selection == "New Transaction Entry":
 
                                 # FIXED: Passed the execution dictionary maps directly into the binding engine
                                 session.execute(
-                                    """
-                                    INSERT INTO LNenterprise (
+                                # Fixed Form Insertion Example:
+                                session.execute(
+                                    text("""
+                                        INSERT INTO LNenterprise (
                                         date, business_name, transaction_type, particulars, 
                                         quantity, unit_price, total_amount, customer_name, 
                                         contact_number, notes
-                                    ) VALUES (
+                                   ) VALUES (
                                         :date, :business_name, :transaction_type, :particulars, 
                                         :quantity, :unit_price, :total_amount, :customer_name, 
                                         :contact_number, :notes
-                                    );
-                                    """,
+                                         );
+                                    """),
                                     {
-                                        "date": tx_date,
-                                        "business_name": business_name_sel,
-                                        "transaction_type": global_tx_type,
-                                        "particulars": item_part,
-                                        "quantity": qty,
-                                        "unit_price": final_price,
-                                        "total_amount": amount,
-                                        "customer_name": "Optional",
-                                        "contact_number": "",
-                                        "notes": desc if desc else "No notes"
-                                    }
-                                )
-                                
+                                    "date": tx_date,
+                                    "business_name": business_name_sel,
+                                    "transaction_type": global_tx_type,
+                                    "particulars": item_part,
+                                    "quantity": qty,
+                                    "unit_price": final_price,
+                                    "total_amount": amount,
+                                    "customer_name": "Optional",
+                                    "contact_number": "",
+                                    "notes": desc if desc else "No notes"
+                               }
+                              )
+   
                                 summary_rows_markdown.append(
                                     f"| {item_part} | {qty} | Ugx {int(price):,} | Ugx {int(abs(amount)):,} | *None* | {desc if desc else '*No notes*'} |"
                                 )
