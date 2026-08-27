@@ -166,9 +166,8 @@ class ParticularsPrices(Base):
 
 # Create the table in the database automatically
 Base.metadata.create_all(bind=engine)
-
-
-    session.execute(text("""
+session.execute(
+    text("""
 CREATE TABLE IF NOT EXISTS LNenterprise (
     id SERIAL PRIMARY KEY,
     date DATE,
@@ -183,9 +182,9 @@ CREATE TABLE IF NOT EXISTS LNenterprise (
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-    """))
-    session.commit()
-
+""")
+)
+session.commit() 
 # Load mapping states out of relational tables 
 PARTICULARS_MAP = {}
 COST_MAP = {}
