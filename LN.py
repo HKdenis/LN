@@ -1,5 +1,7 @@
 import datetime
 from sqlalchemy import text
+from sqlalchemy import NUMERIC, String
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 import pandas as pd
 import streamlit as st
 import altair as alt
@@ -148,17 +150,23 @@ BUSINESS_NAME = ["--Select Name--", "Pauliz Enterprise", "P&J Venture"]
 TRANSACTION_OPTIONS = ["--Select Transaction--", "Sales", "Credit Sales", "Purchases", "Credit Purchases", "Expenses"]
 
 # Ensure tables are built with absolute flat indentation levels to escape compilation errors
-# Option A: Commit the session
-session.execute(text("CREATE TABLE IF NOT EXISTS Particulars_Prices ( particular_name VARCHAR(255) PRIMARY KEY,
-    price NUMERIC(15, 2) DEFAULT 0.0,
-    item_cost NUMERIC(15, 2) DEFAULT 0.0)"))
-session.commit()
+class Base(DeclarativeBase):
+    pass
 
-# Option B: Run on the engine directly (Recommended for DDL)
-with engine.begin() as conn:
-    conn.execute(text("CREATE TABLE IF NOT EXISTS Particulars_Prices (particular_name VARCHAR(255) PRIMARY KEY,
-    price NUMERIC(15, 2) DEFAULT 0.0,
-    item_cost NUMERIC(15, 2) DEFAULT 0.0)"))
+
+class ParticularsPrices(Base):
+    __tablename__ = "Particulars_Prices"
+
+    particular_name: Mapped[str] = mapped_column(
+        String(255), primary_key=True
+    )
+    price: Mapped[float] = mapped_column(NUMERIC(15, 2), default=0.0)
+    item_cost: Mapped[float] = mapped_column(NUMERIC(15, 2), default=0.0)
+
+
+# Create the table in the database automatically
+Base.metadata.create_all(bind=engine)
+
 
     session.execute(text("""
 CREATE TABLE IF NOT EXISTS LNenterprise (
