@@ -148,14 +148,18 @@ BUSINESS_NAME = ["--Select Name--", "Pauliz Enterprise", "P&J Venture"]
 TRANSACTION_OPTIONS = ["--Select Transaction--", "Sales", "Credit Sales", "Purchases", "Credit Purchases", "Expenses"]
 
 # Ensure tables are built with absolute flat indentation levels to escape compilation errors
-with conn.session as session:
-    session.execute(text("""
-CREATE TABLE IF NOT EXISTS Particulars_Prices (
-    particular_name VARCHAR(255) PRIMARY KEY,
+# Option A: Commit the session
+session.execute(text("CREATE TABLE IF NOT EXISTS Particulars_Prices ( particular_name VARCHAR(255) PRIMARY KEY,
     price NUMERIC(15, 2) DEFAULT 0.0,
-    item_cost NUMERIC(15, 2) DEFAULT 0.0
-);
-    """))
+    item_cost NUMERIC(15, 2) DEFAULT 0.0)"))
+session.commit()
+
+# Option B: Run on the engine directly (Recommended for DDL)
+with engine.begin() as conn:
+    conn.execute(text("CREATE TABLE IF NOT EXISTS Particulars_Prices (particular_name VARCHAR(255) PRIMARY KEY,
+    price NUMERIC(15, 2) DEFAULT 0.0,
+    item_cost NUMERIC(15, 2) DEFAULT 0.0)"))
+
     session.execute(text("""
 CREATE TABLE IF NOT EXISTS LNenterprise (
     id SERIAL PRIMARY KEY,
