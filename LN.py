@@ -172,8 +172,7 @@ class ParticularsPrices(Base):
 
 
 # Create the ORM tables automatically using the extracted engine
-Base.metadata.create_all(bind=engine)
-
+Base.metadata.create_all(engine)
 # Use Streamlit's session context wrapper for your raw SQL migrations
 with session as s:
     s.execute(
