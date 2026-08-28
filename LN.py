@@ -1,7 +1,7 @@
 import datetime
 from sqlalchemy import text
-from sqlalchemy import NUMERIC, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy import String, NUMERIC, text
 import pandas as pd
 import streamlit as st
 import altair as alt
@@ -131,9 +131,16 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. INITIALIZE POSTGRESQL NATIVE CONNECTION ---
+
+# --- 1. INITIALIZE POSTGRESQL NATIVE CONNECTION ---
 try:
+    # This automatically reads configuration from your .streamlit/secrets.toml file
     conn = st.connection("postgresql", type="sql")
+    
+    # Extract the underlying SQLAlchemy engine and session from Streamlit's connection
+    engine = conn._instance.engine  # Extracts the core SQLAlchemy engine
+    session = conn.session          # Extracts an active transactional session
+    
 except Exception as e:
     st.error("🔒 PostgreSQL Database Connection Failed. Please check your network credentials.")
     st.exception(e)
@@ -145,7 +152,7 @@ if "editor_session_id" not in st.session_state:
 if "row_count" not in st.session_state:
     st.session_state.row_count = 1
 
-# Business Configuration Data fallbacks
+# --- 2. BUSINESS CONFIGURATION DATA FALLBACKS ---
 BUSINESS_NAME = ["--Select Name--", "Pauliz Enterprise", "P&J Venture"]
 TRANSACTION_OPTIONS = ["--Select Transaction--", "Sales", "Credit Sales", "Purchases", "Credit Purchases", "Expenses"]
 
@@ -164,27 +171,30 @@ class ParticularsPrices(Base):
     item_cost: Mapped[float] = mapped_column(NUMERIC(15, 2), default=0.0)
 
 
-# Create the table in the database automatically
+# Create the ORM tables automatically using the extracted engine
 Base.metadata.create_all(bind=engine)
-session.execute(
-    text("""
-CREATE TABLE IF NOT EXISTS LNenterprise (
-    id SERIAL PRIMARY KEY,
-    date DATE,
-    business_name VARCHAR(255),
-    transaction_type VARCHAR(255),
-    particulars VARCHAR(255),
-    quantity INT,
-    unit_price NUMERIC(15, 2),
-    total_amount NUMERIC(15, 2),
-    customer_name VARCHAR(255),
-    contact_number VARCHAR(255),
-    notes TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-""")
-)
-session.commit() 
+
+# Use Streamlit's session context wrapper for your raw SQL migrations
+with session as s:
+    s.execute(
+        text("""
+        CREATE TABLE IF NOT EXISTS LNenterprise (
+            id SERIAL PRIMARY KEY,
+            date DATE,
+            business_name VARCHAR(255),
+            transaction_type VARCHAR(255),
+            particulars VARCHAR(255),
+            quantity INT,
+            unit_price NUMERIC(15, 2),
+            total_amount NUMERIC(15, 2),
+            customer_name VARCHAR(255),
+            contact_number VARCHAR(255),
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """)
+    )
+    s.commit() 
 # Load mapping states out of relational tables 
 PARTICULARS_MAP = {}
 COST_MAP = {}
