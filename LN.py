@@ -319,7 +319,7 @@ if selection == "Home":
 
     #st.sidebar.markdown("---")
     # Reset Action Button (Triggers rerun instantly via callback)
-    st.sidebar.button("🧹 Clear All Filters", on_click=clear_all_filters, use_container_width=True)
+    #st.sidebar.button("🧹 Clear All Filters", on_click=clear_all_filters, use_container_width=True)
 
     # [Keep your previous Session State and Sidebar Filter logic here]
 
