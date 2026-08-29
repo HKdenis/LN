@@ -864,15 +864,8 @@ elif selection == "Price List":
     
     # 1. Pull directly from your native PostgreSQL database connection
     try:
-        query_catalog = """
-            SELECT 
-                particular_name AS "Particulars", 
-                price AS "Price (Ugx)", 
-                item_cost AS "Item Cost (Ugx)" 
-            FROM Particulars_Prices;
-        """
-        # Fetches real-time catalog directly from Supabase
-        df = conn.query(query_catalog, ttl=0)
+        query_prices = "SELECT particular_name AS \"Particulars\", price AS \"Price (Ugx)\", item_cost AS \"Item Cost (Ugx)\" FROM 'Particulars_Prices';"
+        df_prices = conn.query(query_prices, ttl=0)
     except Exception as db_err:
         st.error(f"❌ Failed to fetch price data items from PostgreSQL database: {db_err}")
         df = pd.DataFrame()
