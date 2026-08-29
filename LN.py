@@ -197,7 +197,8 @@ with session as s:
 # Load mapping states out of relational tables 
 PARTICULARS_MAP = {}
 COST_MAP = {}
-df_prices = conn.query("SELECT particular_name, price, item_cost FROM Particulars_Prices;", ttl=0)
+df_prices = conn.query('SELECT particular_name, price, item_cost FROM "Particulars_Prices";', ttl=0)
+
 if not df_prices.empty:
     for _, row in df_prices.iterrows():
         p_name = str(row["particular_name"]).strip()
