@@ -6,6 +6,7 @@ import pandas as pd
 import streamlit as st
 import altair as alt
 
+
 # --- 0. INITIAL CONFIGURATION ---
 # Streamlit requires set_page_config to be the very first Streamlit command executed!
 st.set_page_config(page_title="Pauliz PUB & Joint", layout="wide")
@@ -153,7 +154,7 @@ if "row_count" not in st.session_state:
     st.session_state.row_count = 1
 
 # --- 2. BUSINESS CONFIGURATION DATA FALLBACKS ---
-BUSINESS_NAME = ["--Select Name--", "Pauliz Enterprise", "P&J Venture"]
+BUSINESS_NAME = ["--Select Name--", "Pauliz Pub", "Pauliz Joint"]
 TRANSACTION_OPTIONS = ["--Select Transaction--", "Sales", "Credit Sales", "Purchases", "Credit Purchases", "Expenses"]
 
 # Ensure tables are built with absolute flat indentation levels to escape compilation errors
@@ -215,7 +216,7 @@ selection = st.sidebar.radio("Go to page:", ["Home", "New Transaction Entry", "P
 
 # Add a logout action cleanly inside the bottom of your sidebar panel
 st.sidebar.markdown("---")
-if st.sidebar.button("🚪 Log Out the System Account", use_container_width=False):
+if st.sidebar.button("🚪 Log Out the System Account", type="primary", use_container_width=False):
     st.session_state.logged_in = False
     st.rerun()
 
@@ -261,7 +262,7 @@ if selection == "Home":
             if key.startswith("val_sel_key_") or key.startswith("sec_val_key_"):
                 del st.session_state[key]
 
-    st.sidebar.button("🧹 Clear All Filters", on_click=clear_all_filters, use_container_width=True)
+    st.sidebar.button("🧹 Clear All Filters", type="primary", on_click=clear_all_filters, use_container_width=False)
 
     st.sidebar.header("⏳ Date Options")
     start_date = st.sidebar.date_input("Start Date", value=st.session_state.start_date_key, key="start_date_key")
@@ -317,12 +318,6 @@ if selection == "Home":
                 filtered_df = filtered_df[filtered_df[secondary_column].astype(str).str.strip().isin(secondary_values)]
 
 
-    #st.sidebar.markdown("---")
-    # Reset Action Button (Triggers rerun instantly via callback)
-    #st.sidebar.button("🧹 Clear All Filters", on_click=clear_all_filters, use_container_width=True)
-
-    # [Keep your previous Session State and Sidebar Filter logic here]
-
     # 3. Apply Multi-Stage Filtering Logic
     if selected_column != "None" and selected_values:
         filtered_df = filtered_df[filtered_df[selected_column].astype(str).str.strip().isin(selected_values)]
@@ -336,8 +331,8 @@ if selection == "Home":
         ]
 
     # Explicitly target your confirmed dataframe column keys
-    type_col = "Transaction"
-    amount_col = "Amount"
+    type_col = "transaction_type"
+    amount_col = "total_amount"
 
     # 4. Main Page Display & Download Action
     st.write(
@@ -543,9 +538,9 @@ if selection == "Home":
         )
 
         # Force the variable names to match exactly what your script uses below
-        Particulars_col = "Particulars"   
-        qty_col = "Quantity"             
-        biz_name_col = "Business Name"   
+        Particulars_col = "particulars"   
+        qty_col = "quantity"             
+        biz_name_col = "business_name"   
 
         # Verify required inventory columns exist in your file structure
         if (Particulars_col in filtered_df.columns and 
@@ -621,40 +616,163 @@ if selection == "Home":
     )
 # --- INVENTORY SECTION END ---
 
-
 # --- PAGE ROUTER: NEW TRANSACTION ENTRY ---
 elif selection == "New Transaction Entry":
-    available_items = ["--Select Item--"] + sorted(list(PARTICULARS_MAP.keys()))
-
     st.write(
-            '<p style="font-family: Consolas; color: #4e6291; font-size: 15px; font-weight: bold; text-align: Left; margin-bottom: 20px;">Record Sales, Purchases, Expenses and stock</p>',
-            unsafe_allow_html=True,
-        )
-        # --- MOBILE OPTIMIZATION: Inject CSS to force smooth mobile scrolling & clean column widths ---
+        '<p style="font-family: Consolas; color: #4e6291; font-size: 15px; font-weight: bold; text-align: Left; margin-bottom: 20px;">Record Sales, Purchases, Expenses and stock</p>',
+        unsafe_allow_html=True,
+    )
+
+    # --- MOBILE OPTIMIZATION ---
     st.html(
         """
-        <style>
-        /* Force table container to adapt nicely on small mobile screens */
-        [data-testid="stDataEditor"] {
-            overflow-x: auto !important;
-            max-width: 100% !important;
-        }
-        /* Make metrics readable on vertical mobile screens */
-        [data-testid="stMetricValue"] {
-            font-size: 1.6rem !important;
-        }
-        </style>
-        """
+    <style>
+    [data-testid="stDataEditor"] { overflow-x: auto !important; max-width: 100% !important; }
+    [data-testid="stMetricValue"] { font-size: 1.6rem !important; }
+    </style>
+    """
     )
+
+    # Initialize Native Streamlit SQL Connection to Supabase
+    try:
+        conn = st.connection("postgresql", type="sql")
+    except Exception as conn_err:
+        st.error(f"🔌 PostgreSQL connection configuration failed: {conn_err}")
+        st.stop()
+
+    st.sidebar.subheader("⚙️ Inventory & Price Manager")
+    st.sidebar.caption("Manage your database catalog live in Supabase.")
+
+    # --- READ ACTIVE CATALOG FROM SUPABASE ---
+    try:
+        # CRITICAL FIX: Wrapped table name in double quotes to preserve capitalization
+        df_catalog = conn.query(
+            'SELECT particular_name, price, item_cost FROM "Particulars_Prices" ORDER BY particular_name ASC;',
+            ttl=0,
+        )
+    
+        # Build clean mapping dictionaries from the queried DataFrame
+        if df_catalog is not None and not df_catalog.empty:
+            PARTICULARS_MAP = dict(zip(df_catalog["particular_name"], df_catalog["price"]))
+            COST_MAP = dict(zip(df_catalog["particular_name"], df_catalog["item_cost"]))
+            existing_items = df_catalog["particular_name"].tolist()
+        else:
+            PARTICULARS_MAP = {}
+            COST_MAP = {}
+            existing_items = []
+    except Exception as query_err:
+        st.sidebar.error(f"❌ Failed to fetch database catalog: {query_err}")
+        PARTICULARS_MAP = {}
+        COST_MAP = {}
+        existing_items = []
+
+    # 1. Initialize a form submission tracking key if it doesn't exist
+    if "form_submitted" not in st.session_state:
+        st.session_state["form_submitted"] = False
+
+    # 2. Define the database processing callback
+    def save_item_callback():
+        selected = st.session_state.get("sidebar_select_particular")
+    
+        if selected == "➕ Add New Item...":
+            particular = st.session_state.get("sidebar_new_particular", "").strip()
+        elif selected != "-- Select Existing Item --":
+            particular = selected
+        else:
+            particular = ""
+
+        if not particular:
+            st.toast("⚠️ Please select or enter a valid Particular Name.")
+            return
+
+        price = st.session_state.get("form_price", 0)
+        cost = st.session_state.get("form_cost", 0)
+
+        try:
+            with conn.session as session:
+                upsert_query = """
+                    INSERT INTO "Particulars_Prices" (particular_name, price, item_cost) 
+                    VALUES (:name, :price, :cost) 
+                    ON CONFLICT (particular_name) 
+                    DO UPDATE SET price = EXCLUDED.price, item_cost = EXCLUDED.item_cost;
+                """
+                session.execute(text(upsert_query), {"name": particular, "price": price, "cost": cost})
+                session.commit()
+            
+            st.toast(f"✅ Saved {particular} successfully!")
+            # Flag that submission succeeded; Streamlit automatically re-runs after this callback
+            st.session_state["form_submitted"] = True
+        
+        except Exception as ex:
+            st.toast(f"❌ Database error: {str(ex)}")
+
+    # 3. Render the UI
+    sidebar_tab1, sidebar_tab2 = st.sidebar.tabs(["➕ Add/Edit Item", "🗑️ Delete Item"])
+
+    with sidebar_tab1:
+        # If the form just saved successfully, we force the widgets to drop their text values
+        if st.session_state["form_submitted"]:
+            st.session_state["sidebar_select_particular"] = "-- Select Existing Item --"
+            if "sidebar_new_particular" in st.session_state:
+                st.session_state["sidebar_new_particular"] = ""
+            # Reset the flag so fields behave normally on the next interaction
+            st.session_state["form_submitted"] = False
+
+        options = ["-- Select Existing Item --", "➕ Add New Item..."] + sorted(existing_items)
+        selected_option = st.selectbox("Particular Name", options, key="sidebar_select_particular")
+    
+        if selected_option == "➕ Add New Item...":
+            input_particular = st.text_input("Enter New Particular Name", key="sidebar_new_particular").strip()
+        elif selected_option != "-- Select Existing Item --":
+            input_particular = selected_option
+        else:
+            input_particular = ""
+
+        default_price = float(PARTICULARS_MAP.get(input_particular, 0)) if input_particular in PARTICULARS_MAP else 0
+        default_cost = float(COST_MAP.get(input_particular, 0)) if input_particular in COST_MAP else 0
+
+        with st.form("add_edit_form", clear_on_submit=True):
+            input_price = st.number_input("Price (Ugx)", min_value=0, step=500, value=int(default_price), key="form_price")
+            input_cost = st.number_input("Item Cost (Ugx)", min_value=0, step=500, value=int(default_cost), key="form_cost")
+        
+            st.form_submit_button("Save Item to Price List", type="primary", on_click=save_item_callback)
+
+    # TAB 2: DELETE ITEM
+    with sidebar_tab2:
+        if existing_items:
+            item_to_delete = st.selectbox("Select Item to Remove", sorted(existing_items), key="sidebar_delete_select")
+            if st.button("Delete Selected Item", type="primary"):
+                try:
+                    with conn.session as session:
+                        # CRITICAL FIX: Wrapped table name in double quotes
+                        delete_query = 'DELETE FROM "Particulars_Prices" WHERE particular_name = :name;'
+                        session.execute(text(delete_query), {"name": item_to_delete})
+                        session.commit()
+                    st.toast(f"🗑️ Deleted {item_to_delete} from Supabase!")
+                    st.rerun()
+                except Exception as ex:
+                    st.toast(f"❌ Error deleting item: {str(ex)}")
+        else:
+            st.caption("No items available to remove.")
+    # Re-build target dynamic selection array list for main transaction window layout
+    available_items = ["--Select Item--"] + sorted(list(PARTICULARS_MAP.keys()))
 
     # --- 1. BATCH CONFIGURATION LINE ---
     col_d1, col_d2, col_d3 = st.columns(3)
     with col_d1:
         tx_date = st.date_input("Transaction Date", datetime.date.today())
     with col_d2:
-        business_name_sel = st.selectbox("Business Name", BUSINESS_NAME, key=f"bs_name_{st.session_state.editor_session_id}")
+        business_name_sel = st.selectbox(
+            "Business Name",
+            BUSINESS_NAME,
+            key=f"bs_name_{st.session_state.editor_session_id}",
+        )
     with col_d3:
-        global_tx_type = st.selectbox("Transaction Type", TRANSACTION_OPTIONS, key=f"tx_type_{st.session_state.editor_session_id}")
+        global_tx_type = st.selectbox(
+            "Transaction Type",
+            TRANSACTION_OPTIONS,
+            key=f"tx_type_{st.session_state.editor_session_id}",
+        )
 
     # DETERMINE DYNAMIC TRANSACTION STATUS TRACKER TAG VALUE
     if global_tx_type in ["Credit Sales", "Credit Purchases"]:
@@ -855,17 +973,17 @@ elif selection == "New Transaction Entry":
                 st.rerun()
 
 # --- PAGE 2: Price List ---       
-# --- PAGE 2: Price List ---       
+     
 elif selection == "Price List":
     st.write(
-        '<p style="font-family: Consolas; color: #4e6291; font-size: 15px; font-weight: bold; text-align: Left; margin-bottom: 20px;">Review the Prices and costs of each Item/good</p>',
+        '<p style="font-family: Consolas; color: #4e6291; font-size: 15px; font-weight: bold; text-align: Left; margin-bottom: 20px;">Review the Prices and costs of each Item/Goods</p>',
         unsafe_allow_html=True,
     )
     
     # 1. Pull directly from your native PostgreSQL database connection
     try:
-        #  Cleaner Approach
-        df_prices = conn.query("""
+        # CHANGED: Saved directly to 'df' instead of 'df_prices'
+        df = conn.query("""
             SELECT 
                 particular_name AS "Particulars", 
                 price AS "Price (Ugx)", 
@@ -922,4 +1040,3 @@ elif selection == "Price List":
         st.dataframe(styled_df, use_container_width=True, hide_index=True)
     else:
         st.warning("⚠️ No active catalog records or rows found inside the database.")
-
